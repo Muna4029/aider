@@ -527,18 +527,20 @@ class Commands:
 
         limit = self.coder.main_model.info.get("max_input_tokens") or 0
         if not limit:
+            remaining_str = "unlimited".rjust(8)
+            self.io.tool_output(f"{cost_pad}{remaining_str} tokens remaining (no limit set)")
             return
 
         remaining = limit - total
         if remaining > 1024:
             self.io.tool_output(f"{cost_pad}{fmt(remaining)} tokens remaining in context window")
         elif remaining > 0:
-            self.io.tool_error(
+            self.io.tool_output(
                 f"{cost_pad}{fmt(remaining)} tokens remaining in context window (use /drop or"
                 " /clear to make space)"
             )
         else:
-            self.io.tool_error(
+            self.io.tool_output(
                 f"{cost_pad}{fmt(remaining)} tokens remaining, window exhausted (use /drop or"
                 " /clear to make space)"
             )

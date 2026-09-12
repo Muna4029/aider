@@ -250,7 +250,11 @@ class RepoMap:
                 return self.TAGS_CACHE[cache_key]["data"]
 
         # miss!
-        data = list(self.get_tags_raw(fname, rel_fname))
+        try:
+            data = list(self.get_tags_raw(fname, rel_fname))
+        except Exception as e:
+            warnings.warn(f"Error getting tags for {fname}: {e}")
+            data = []
 
         # Update the cache
         try:
@@ -285,8 +289,27 @@ class RepoMap:
         tree = parser.parse(bytes(code, "utf-8"))
 
         # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            try:
+                from tree_sitter import Query, QueryCursor
+                query = Query(language, query_scm)
+                if QueryCursor is not None:
+                    try:
+                        cursor = QueryCursor(query)
+                        captures = cursor.captures(tree.root_node)
+                    except Exception:
+                        warnings.warn(f"QueryCursor failed for {fname}, falling back")
+                        query = language.query(query_scm)
+                        captures = query.captures(tree.root_node)
+                else:
+                    query = language.query(query_scm)
+                    captures = query.captures(tree.root_node)
+            except ImportError:
+                query = language.query(query_scm)
+                captures = query.captures(tree.root_node)
+        except Exception as e:
+            warnings.warn(f"Tag extraction error for {fname}: {e}")
+            return
 
         saw = set()
         if USING_TSL_PACK:

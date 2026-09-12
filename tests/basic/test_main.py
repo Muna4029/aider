@@ -1072,54 +1072,72 @@ class TestMain(TestCase):
                 self.assertIn("not-a-real-format", stderr_output)
 
     def test_default_model_selection(self):
-        with GitTemporaryDirectory():
-            # Test Anthropic API key
-            os.environ["ANTHROPIC_API_KEY"] = "test-key"
-            coder = main(
-                ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
-            )
-            self.assertIn("sonnet", coder.main_model.name.lower())
-            del os.environ["ANTHROPIC_API_KEY"]
+        # Save original environment variables
+        saved_env = {}
+        api_keys = [
+            "ANTHROPIC_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY", "GEMINI_API_KEY", "VERTEXAI_PROJECT"
+        ]
+        for key in api_keys:
+            saved_env[key] = os.environ.get(key)
+            if key in os.environ:
+                del os.environ[key]
 
-            # Test DeepSeek API key
-            os.environ["DEEPSEEK_API_KEY"] = "test-key"
-            coder = main(
-                ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
-            )
-            self.assertIn("deepseek", coder.main_model.name.lower())
-            del os.environ["DEEPSEEK_API_KEY"]
+        try:
+            with GitTemporaryDirectory():
+                # Test Anthropic API key
+                os.environ["ANTHROPIC_API_KEY"] = "test-key"
+                coder = main(
+                    ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
+                )
+                self.assertIn("sonnet", coder.main_model.name.lower())
+                del os.environ["ANTHROPIC_API_KEY"]
 
-            # Test OpenRouter API key
-            os.environ["OPENROUTER_API_KEY"] = "test-key"
-            coder = main(
-                ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
-            )
-            self.assertIn("openrouter/", coder.main_model.name.lower())
-            del os.environ["OPENROUTER_API_KEY"]
+                # Test DeepSeek API key
+                os.environ["DEEPSEEK_API_KEY"] = "test-key"
+                coder = main(
+                    ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
+                )
+                self.assertIn("deepseek", coder.main_model.name.lower())
+                del os.environ["DEEPSEEK_API_KEY"]
 
-            # Test OpenAI API key
-            os.environ["OPENAI_API_KEY"] = "test-key"
-            coder = main(
-                ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
-            )
-            self.assertIn("gpt-4", coder.main_model.name.lower())
-            del os.environ["OPENAI_API_KEY"]
+                # Test OpenRouter API key
+                os.environ["OPENROUTER_API_KEY"] = "test-key"
+                coder = main(
+                    ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
+                )
+                self.assertIn("openrouter/", coder.main_model.name.lower())
+                del os.environ["OPENROUTER_API_KEY"]
 
-            # Test Gemini API key
-            os.environ["GEMINI_API_KEY"] = "test-key"
-            coder = main(
-                ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
-            )
-            self.assertIn("gemini", coder.main_model.name.lower())
-            del os.environ["GEMINI_API_KEY"]
+                # Test OpenAI API key
+                os.environ["OPENAI_API_KEY"] = "test-key"
+                coder = main(
+                    ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
+                )
+                self.assertIn("gpt-4", coder.main_model.name.lower())
+                del os.environ["OPENAI_API_KEY"]
 
-            # Test no API keys - should offer OpenRouter OAuth
-            with patch("aider.onboarding.offer_openrouter_oauth") as mock_offer_oauth:
-                mock_offer_oauth.return_value = None  # Simulate user declining or failure
-                result = main(["--exit", "--yes"], input=DummyInput(), output=DummyOutput())
-                self.assertEqual(result, 1)  # Expect failure since no model could be selected
-                mock_offer_oauth.assert_called_once()
+                # Test Gemini API key
+                os.environ["GEMINI_API_KEY"] = "test-key"
+                coder = main(
+                    ["--exit", "--yes"], input=DummyInput(), output=DummyOutput(), return_coder=True
+                )
+                self.assertIn("gemini", coder.main_model.name.lower())
+                del os.environ["GEMINI_API_KEY"]
 
+                # Test no API keys - should offer OpenRouter OAuth
+                with patch("aider.onboarding.offer_openrouter_oauth") as mock_offer_oauth:
+                    mock_offer_oauth.return_value = None  # Simulate user declining or failure
+                    result = main(["--exit", "--yes"], input=DummyInput(), output=DummyOutput())
+                    self.assertEqual(result, 1)  # Expect failure since no model could be selected
+                    mock_offer_oauth.assert_called_once()
+        finally:
+            # Restore original environment variables
+            for key, value in saved_env.items():
+                if value is not None:
+                    os.environ[key] = value
+                elif key in os.environ:
+                    del os.environ[key]
     def test_model_precedence(self):
         with GitTemporaryDirectory():
             # Test that earlier API keys take precedence

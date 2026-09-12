@@ -3,6 +3,7 @@ import os
 import re
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import git
@@ -489,6 +490,22 @@ class TestRepoMapAllLanguages(unittest.TestCase):
 
         # If we reach here, the maps are identical
         self.assertEqual(generated_map_str, expected_map, "Generated map matches expected map")
+
+    def test_get_tags_handles_exception(self):
+        """Test that get_tags returns empty list when get_tags_raw raises an exception."""
+        with IgnorantTemporaryDirectory() as temp_dir:
+            test_file = os.path.join(temp_dir, "test_exception.py")
+            with open(test_file, "w") as f:
+                f.write("def foo():\n    pass\n")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            with patch.object(repo_map, 'get_tags_raw', side_effect=ValueError('boom')):
+                result = repo_map.get_tags(test_file, 'test_exception.py')
+                self.assertEqual(result, [])
+
+            del repo_map
 
 
 if __name__ == "__main__":
