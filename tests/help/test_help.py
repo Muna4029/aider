@@ -1,15 +1,41 @@
+import os
 import time
 import unittest
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from requests.exceptions import ConnectionError, ReadTimeout
 
 import aider
 from aider.coders import Coder
 from aider.commands import Commands
-from aider.help import Help, fname_to_url
+from aider.help import Help, fname_to_url, get_help_extra_package
 from aider.io import InputOutput
 from aider.models import Model
+
+
+class TestHelpExtraPackage(unittest.TestCase):
+    def test_get_help_extra_package_local_checkout(self):
+        """When pyproject.toml exists in the project root, return local path with [help] extra."""
+        package = get_help_extra_package()
+        # In the testbed, pyproject.toml exists, so it should return a path ending with [help]
+        self.assertTrue(package.endswith("[help]"))
+        # The path should be an absolute path to the project root
+        path_part = package[: -len("[help]")]
+        self.assertTrue(os.path.isdir(path_part))
+        self.assertTrue((Path(path_part) / "pyproject.toml").exists())
+
+    @patch("aider.help.Path")
+    def test_get_help_extra_package_pinned_release(self, mock_path):
+        """When pyproject.toml does not exist, return the pinned version."""
+        # Mock Path(__file__).resolve().parents to not find pyproject.toml
+        mock_file_path = MagicMock()
+        mock_file_path.resolve.return_value = mock_file_path
+        mock_file_path.parents = []  # No parents, so no pyproject.toml found
+        mock_path.return_value = mock_file_path
+
+        package = get_help_extra_package()
+        self.assertEqual(package, "aider-chat[help]")
 
 
 class TestHelp(unittest.TestCase):
@@ -97,7 +123,9 @@ class TestHelp(unittest.TestCase):
 
     def test_fname_to_url_unix(self):
         # Test relative Unix-style paths
-        self.assertEqual(fname_to_url("website/docs/index.md"), "https://aider.chat/docs")
+        self.assertEqual(
+            fname_to_url("website/docs/index.md"), "https://aider.chat/docs"
+        )
         self.assertEqual(
             fname_to_url("website/docs/usage.md"), "https://aider.chat/docs/usage.html"
         )
@@ -105,17 +133,22 @@ class TestHelp(unittest.TestCase):
 
         # Test absolute Unix-style paths
         self.assertEqual(
-            fname_to_url("/home/user/project/website/docs/index.md"), "https://aider.chat/docs"
+            fname_to_url("/home/user/project/website/docs/index.md"),
+            "https://aider.chat/docs",
         )
         self.assertEqual(
             fname_to_url("/home/user/project/website/docs/usage.md"),
             "https://aider.chat/docs/usage.html",
         )
-        self.assertEqual(fname_to_url("/home/user/project/website/_includes/header.md"), "")
+        self.assertEqual(
+            fname_to_url("/home/user/project/website/_includes/header.md"), ""
+        )
 
     def test_fname_to_url_windows(self):
         # Test relative Windows-style paths
-        self.assertEqual(fname_to_url(r"website\docs\index.md"), "https://aider.chat/docs")
+        self.assertEqual(
+            fname_to_url(r"website\docs\index.md"), "https://aider.chat/docs"
+        )
         self.assertEqual(
             fname_to_url(r"website\docs\usage.md"), "https://aider.chat/docs/usage.html"
         )
@@ -123,13 +156,16 @@ class TestHelp(unittest.TestCase):
 
         # Test absolute Windows-style paths
         self.assertEqual(
-            fname_to_url(r"C:\Users\user\project\website\docs\index.md"), "https://aider.chat/docs"
+            fname_to_url(r"C:\Users\user\project\website\docs\index.md"),
+            "https://aider.chat/docs",
         )
         self.assertEqual(
             fname_to_url(r"C:\Users\user\project\website\docs\usage.md"),
             "https://aider.chat/docs/usage.html",
         )
-        self.assertEqual(fname_to_url(r"C:\Users\user\project\website\_includes\header.md"), "")
+        self.assertEqual(
+            fname_to_url(r"C:\Users\user\project\website\_includes\header.md"), ""
+        )
 
     def test_fname_to_url_edge_cases(self):
         # Test paths that don't contain 'website'

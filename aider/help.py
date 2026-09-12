@@ -15,9 +15,27 @@ from aider.help_pats import exclude_website_pats
 warnings.simplefilter("ignore", category=FutureWarning)
 
 
+def get_help_extra_package():
+    """Return the package specifier for the help extras.
+
+    When pyproject.toml exists in the project root (local checkout),
+    use the local path with [help] extra. Otherwise use the pinned
+    version from PyPI.
+    """
+    # Find the project root by looking for pyproject.toml
+    # relative to this file's location
+    this_file = Path(__file__).resolve()
+    # Go up from aider/help.py to find project root
+    for parent in this_file.parents:
+        if (parent / "pyproject.toml").exists():
+            return str(parent) + "[help]"
+    # Fall back to the PyPI package
+    return "aider-chat[help]"
+
+
 def install_help_extra(io):
     pip_install_cmd = [
-        "aider-chat[help]",
+        get_help_extra_package(),
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
     ]
@@ -149,7 +167,7 @@ class Help:
 
 # Relevant docs:
 
-"""  # noqa: E231
+"""
 
         for node in nodes:
             url = node.metadata.get("url", "")
