@@ -286,15 +286,24 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            captures = query.captures(tree.root_node)
+        except Exception:
+            return
 
         saw = set()
         if USING_TSL_PACK:
             all_nodes = []
-            for tag, nodes in captures.items():
-                all_nodes += [(node, tag) for node in nodes]
+            try:
+                for tag, nodes in captures.items():
+                    all_nodes += [(node, tag) for node in nodes]
+            except Exception:
+                return
         else:
-            all_nodes = list(captures)
+            try:
+                all_nodes = list(captures)
+            except Exception:
+                return
 
         for node, tag in all_nodes:
             if tag.startswith("name.definition."):

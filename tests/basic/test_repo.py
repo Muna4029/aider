@@ -205,7 +205,7 @@ class TestRepo(unittest.TestCase):
 
             io = InputOutput()
             # Initialize GitRepo with default None values for attributes
-            git_repo = GitRepo(io, None, None, attribute_author=None, attribute_committer=None)
+            git_repo = GitRepo(io, None, None, attribute_author=None, attribute_committer=None, attribute_co_authored_by=False)
 
             # commit a change with aider_edits=True (using default attributes)
             fname.write_text("new content")

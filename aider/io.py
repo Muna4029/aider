@@ -860,31 +860,43 @@ class InputOutput:
             res = group.preference
             self.user_input(f"{question}{res}", log_only=False)
         else:
-            while True:
-                try:
-                    if self.prompt_session:
-                        res = self.prompt_session.prompt(
-                            question,
-                            style=style,
-                            complete_while_typing=False,
-                        )
-                    else:
-                        res = input(question)
-                except EOFError:
-                    # Treat EOF (Ctrl+D) as if the user pressed Enter
-                    res = default
-                    break
+            # Disable history recording during confirm prompts
+            prompt_session = getattr(self, 'prompt_session', None)
+            buffer = getattr(prompt_session, 'default_buffer', None) if prompt_session else None
+            orig_buf_append = None
+            if buffer is not None:
+                orig_buf_append = buffer.append_to_history
+                buffer.append_to_history = lambda *args, **kwargs: None
 
-                if not res:
-                    res = default
-                    break
-                res = res.lower()
-                good = any(valid_response.startswith(res) for valid_response in valid_responses)
-                if good:
-                    break
+            try:
+                while True:
+                    try:
+                        if self.prompt_session:
+                            res = self.prompt_session.prompt(
+                                question,
+                                style=style,
+                                complete_while_typing=False,
+                            )
+                        else:
+                            res = input(question)
+                    except EOFError:
+                        # Treat EOF (Ctrl+D) as if the user pressed Enter
+                        res = default
+                        break
 
-                error_message = f"Please answer with one of: {', '.join(valid_responses)}"
-                self.tool_error(error_message)
+                    if not res:
+                        res = default
+                        break
+                    res = res.lower()
+                    good = any(valid_response.startswith(res) for valid_response in valid_responses)
+                    if good:
+                        break
+
+                    error_message = f"Please answer with one of: {', '.join(valid_responses)}"
+                    self.tool_error(error_message)
+            finally:
+                if orig_buf_append is not None and buffer is not None:
+                    buffer.append_to_history = orig_buf_append
 
         res = res.lower()[0]
 
