@@ -148,6 +148,18 @@ class ModelInfoManager:
         self.local_model_metadata = {}
         self.verify_ssl = True
         self._cache_loaded = False
+        self._load_resource_metadata()
+
+    def _load_resource_metadata(self):
+        """Load the package resource model metadata."""
+        try:
+            import importlib.resources as resources
+            with resources.open_text("aider.resources", "model-metadata.json") as f:
+                data = json5.load(f)
+                if data:
+                    self.local_model_metadata.update(data)
+        except Exception:
+            pass
 
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl

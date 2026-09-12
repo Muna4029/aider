@@ -23,9 +23,9 @@ from aider.utils import Spinner
 
 # tree_sitter is throwing a FutureWarning
 warnings.simplefilter("ignore", category=FutureWarning)
-from grep_ast.tsl import USING_TSL_PACK, get_language, get_parser  # noqa: E402
+from grep_ast.tsl import USING_TSL_PACK, get_language, get_parser
 
-Tag = namedtuple("Tag", "rel_fname fname line name kind".split())
+Tag = namedtuple("Tag", ["rel_fname", "fname", "line", "name", "kind"])
 
 
 SQLITE_ERRORS = (sqlite3.OperationalError, sqlite3.DatabaseError, OSError)
@@ -175,7 +175,7 @@ class RepoMap:
         """Handle SQLite errors by trying to recreate cache, falling back to dict if needed"""
 
         if self.verbose and original_error:
-            self.io.tool_warning(f"Tags cache error: {str(original_error)}")
+            self.io.tool_warning(f"Tags cache error: {original_error!s}")
 
         if isinstance(getattr(self, "TAGS_CACHE", None), dict):
             return
@@ -207,7 +207,7 @@ class RepoMap:
                 f"Unable to use tags cache at {path}, falling back to memory cache"
             )
             if self.verbose:
-                self.io.tool_warning(f"Cache recreation error: {str(e)}")
+                self.io.tool_warning(f"Cache recreation error: {e!s}")
 
         self.TAGS_CACHE = dict()
 
@@ -283,8 +283,40 @@ class RepoMap:
         tree = parser.parse(bytes(code, "utf-8"))
 
         # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            query = language.query(query_scm)
+        except AttributeError:
+            # tree-sitter >= 0.26 changed the API
+            import tree_sitter
+
+            query = tree_sitter.Query(language, query_scm)
+
+        # Try QueryCursor first (tree-sitter >= 0.25), fall back to query.captures
+        try:
+            from tree_sitter import QueryCursor
+
+            cursor = QueryCursor(query)
+            captures = cursor.captures(tree.root_node)
+        except (ImportError, AttributeError, TypeError):
+            try:
+                captures = query.captures(tree.root_node)
+            except AttributeError:
+                # tree-sitter >= 0.26 uses QueryCursor
+                import tree_sitter
+
+                cursor = tree_sitter.QueryCursor(query)
+                captures = cursor.captures(tree.root_node)
+            except Exception:
+                return
+        except Exception:
+            return
+
+        # Handle QueryCursor result (tree-sitter 0.22.x returns QueryCursor instead of dict)
+        if not hasattr(captures, "items"):
+            try:
+                captures = {tag: nodes for tag, nodes in captures}
+            except Exception:
+                return
 
         saw = set()
         if USING_TSL_PACK:
@@ -342,7 +374,12 @@ class RepoMap:
             )
 
     def get_ranked_tags(
-        self, chat_fnames, other_fnames, mentioned_fnames, mentioned_idents, progress=None
+        self,
+        chat_fnames,
+        other_fnames,
+        mentioned_fnames,
+        mentioned_idents,
+        progress=None,
     ):
         import networkx as nx
 
@@ -413,7 +450,9 @@ class RepoMap:
             path_components = set(path_obj.parts)
             basename_with_ext = path_obj.name
             basename_without_ext, _ = os.path.splitext(basename_with_ext)
-            components_to_check = path_components.union({basename_with_ext, basename_without_ext})
+            components_to_check = path_components.union(
+                {basename_with_ext, basename_without_ext}
+            )
 
             matched_idents = components_to_check.intersection(mentioned_idents)
             if matched_idents:
@@ -421,7 +460,9 @@ class RepoMap:
                 current_pers += personalize
 
             if current_pers > 0:
-                personalization[rel_fname] = current_pers  # Assign the final calculated value
+                personalization[rel_fname] = (
+                    current_pers  # Assign the final calculated value
+                )
 
             tags = list(self.get_tags(fname, rel_fname))
             if tags is None:
@@ -466,7 +507,9 @@ class RepoMap:
             mul = 1.0
 
             is_snake = ("_" in ident) and any(c.isalpha() for c in ident)
-            is_camel = any(c.isupper() for c in ident) and any(c.islower() for c in ident)
+            is_camel = any(c.isupper() for c in ident) and any(
+                c.islower() for c in ident
+            )
             if ident in mentioned_idents:
                 mul *= 10
             if (is_snake or is_camel) and len(ident) >= 8:
@@ -489,7 +532,9 @@ class RepoMap:
                     # scale down so high freq (low value) mentions don't dominate
                     num_refs = math.sqrt(num_refs)
 
-                    G.add_edge(referencer, definer, weight=use_mul * num_refs, ident=ident)
+                    G.add_edge(
+                        referencer, definer, weight=use_mul * num_refs, ident=ident
+                    )
 
         if not references:
             pass
@@ -515,7 +560,9 @@ class RepoMap:
                 progress()
 
             src_rank = ranked[src]
-            total_weight = sum(data["weight"] for _src, _dst, data in G.out_edges(src, data=True))
+            total_weight = sum(
+                data["weight"] for _src, _dst, data in G.out_edges(src, data=True)
+            )
             # dump(src, src_rank, total_weight)
             for _src, dst, data in G.out_edges(src, data=True):
                 data["rank"] = src_rank * data["weight"] / total_weight
@@ -535,11 +582,15 @@ class RepoMap:
                 continue
             ranked_tags += list(definitions.get((fname, ident), []))
 
-        rel_other_fnames_without_tags = set(self.get_rel_fname(fname) for fname in other_fnames)
+        rel_other_fnames_without_tags = set(
+            self.get_rel_fname(fname) for fname in other_fnames
+        )
 
         fnames_already_included = set(rt[0] for rt in ranked_tags)
 
-        top_rank = sorted([(rank, node) for (node, rank) in ranked.items()], reverse=True)
+        top_rank = sorted(
+            [(rank, node) for (node, rank) in ranked.items()], reverse=True
+        )
         for rank, fname in top_rank:
             if fname in rel_other_fnames_without_tags:
                 rel_other_fnames_without_tags.remove(fname)
@@ -593,7 +644,11 @@ class RepoMap:
         # If not in cache or force_refresh is True, generate the map
         start_time = time.time()
         result = self.get_ranked_tags_map_uncached(
-            chat_fnames, other_fnames, max_map_tokens, mentioned_fnames, mentioned_idents
+            chat_fnames,
+            other_fnames,
+            max_map_tokens,
+            mentioned_fnames,
+            mentioned_idents,
         )
         end_time = time.time()
         self.map_processing_time = end_time - start_time
@@ -631,7 +686,9 @@ class RepoMap:
             progress=spin.step,
         )
 
-        other_rel_fnames = sorted(set(self.get_rel_fname(fname) for fname in other_fnames))
+        other_rel_fnames = sorted(
+            set(self.get_rel_fname(fname) for fname in other_fnames)
+        )
         special_fnames = filter_important_files(other_rel_fnames)
         ranked_tags_fnames = set(tag[0] for tag in ranked_tags)
         special_fnames = [fn for fn in special_fnames if fn not in ranked_tags_fnames]
@@ -662,7 +719,9 @@ class RepoMap:
 
             pct_err = abs(num_tokens - max_map_tokens) / max_map_tokens
             ok_err = 0.15
-            if (num_tokens <= max_map_tokens and num_tokens > best_tree_tokens) or pct_err < ok_err:
+            if (
+                num_tokens <= max_map_tokens and num_tokens > best_tree_tokens
+            ) or pct_err < ok_err:
                 best_tree = tree
                 best_tree_tokens = num_tokens
 
