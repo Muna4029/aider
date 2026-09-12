@@ -1,13 +1,14 @@
 import time
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from requests.exceptions import ConnectionError, ReadTimeout
 
 import aider
 from aider.coders import Coder
 from aider.commands import Commands
-from aider.help import Help, fname_to_url
+from aider.help import Help, fname_to_url, get_help_extra_package, install_help_extra
+from aider import __version__
 from aider.io import InputOutput
 from aider.models import Model
 
@@ -97,7 +98,9 @@ class TestHelp(unittest.TestCase):
 
     def test_fname_to_url_unix(self):
         # Test relative Unix-style paths
-        self.assertEqual(fname_to_url("website/docs/index.md"), "https://aider.chat/docs")
+        self.assertEqual(
+            fname_to_url("website/docs/index.md"), "https://aider.chat/docs"
+        )
         self.assertEqual(
             fname_to_url("website/docs/usage.md"), "https://aider.chat/docs/usage.html"
         )
@@ -105,17 +108,22 @@ class TestHelp(unittest.TestCase):
 
         # Test absolute Unix-style paths
         self.assertEqual(
-            fname_to_url("/home/user/project/website/docs/index.md"), "https://aider.chat/docs"
+            fname_to_url("/home/user/project/website/docs/index.md"),
+            "https://aider.chat/docs",
         )
         self.assertEqual(
             fname_to_url("/home/user/project/website/docs/usage.md"),
             "https://aider.chat/docs/usage.html",
         )
-        self.assertEqual(fname_to_url("/home/user/project/website/_includes/header.md"), "")
+        self.assertEqual(
+            fname_to_url("/home/user/project/website/_includes/header.md"), ""
+        )
 
     def test_fname_to_url_windows(self):
         # Test relative Windows-style paths
-        self.assertEqual(fname_to_url(r"website\docs\index.md"), "https://aider.chat/docs")
+        self.assertEqual(
+            fname_to_url(r"website\docs\index.md"), "https://aider.chat/docs"
+        )
         self.assertEqual(
             fname_to_url(r"website\docs\usage.md"), "https://aider.chat/docs/usage.html"
         )
@@ -123,13 +131,16 @@ class TestHelp(unittest.TestCase):
 
         # Test absolute Windows-style paths
         self.assertEqual(
-            fname_to_url(r"C:\Users\user\project\website\docs\index.md"), "https://aider.chat/docs"
+            fname_to_url(r"C:\Users\user\project\website\docs\index.md"),
+            "https://aider.chat/docs",
         )
         self.assertEqual(
             fname_to_url(r"C:\Users\user\project\website\docs\usage.md"),
             "https://aider.chat/docs/usage.html",
         )
-        self.assertEqual(fname_to_url(r"C:\Users\user\project\website\_includes\header.md"), "")
+        self.assertEqual(
+            fname_to_url(r"C:\Users\user\project\website\_includes\header.md"), ""
+        )
 
     def test_fname_to_url_edge_cases(self):
         # Test paths that don't contain 'website'
@@ -141,6 +152,59 @@ class TestHelp(unittest.TestCase):
 
         # Test path with 'website' in the wrong place
         self.assertEqual(fname_to_url("/home/user/website_project/docs/index.md"), "")
+
+    def test_get_help_extra_package_local_checkout(self):
+        """Test that get_help_extra_package returns local path when pyproject.toml exists."""
+        package = get_help_extra_package()
+        # When running from a local checkout with pyproject.toml,
+        # the result should be a path ending with [help]
+        self.assertTrue(package.endswith("[help]"))
+        # It should not be the simple 'aider-chat[help]' string
+        self.assertNotEqual(package, "aider-chat[help]")
+        # It should contain the repo root path
+        self.assertIn("testbed", package)
+
+    def test_get_help_extra_package_pinned_release(self):
+        """Test that get_help_extra_package returns pinned release when pyproject.toml is absent."""
+        from pathlib import Path
+        import aider.help as help_module
+
+        # Temporarily remove pyproject.toml to simulate installed release
+        original_path = (
+            Path(help_module.__file__).resolve().parent.parent / "pyproject.toml"
+        )
+        backup = None
+        if original_path.exists():
+            backup = original_path.read_bytes()
+            original_path.unlink()
+
+        try:
+            # Re-import to get fresh function reference
+            import importlib
+
+            help_module = importlib.reload(help_module)
+            package = help_module.get_help_extra_package()
+            # Should be the pinned release format
+            self.assertTrue(package.startswith("aider-chat[help]=="))
+            self.assertIn(__version__, package)
+        finally:
+            if backup is not None:
+                original_path.write_bytes(backup)
+
+    def test_install_help_extra_uses_get_help_extra_package(self):
+        """Test that install_help_extra passes the resolved package into check_pip_install_extra."""
+        from aider import utils
+
+        io = InputOutput(pretty=False, yes=True)
+
+        with patch.object(utils, "check_pip_install_extra") as mock_check:
+            install_help_extra(io)
+            # Verify check_pip_install_extra was called
+            mock_check.assert_called_once()
+            # The first argument to pip_install_cmd should be the resolved package
+            args = mock_check.call_args
+            pip_install_cmd = args[0][3]  # pip_install_cmd is the 4th positional arg
+            self.assertTrue(pip_install_cmd[0].endswith("[help]"))
 
 
 if __name__ == "__main__":

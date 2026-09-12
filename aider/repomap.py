@@ -23,6 +23,13 @@ from aider.waiting import Spinner
 
 # tree_sitter is throwing a FutureWarning
 warnings.simplefilter("ignore", category=FutureWarning)
+from tree_sitter import Query
+try:
+    from tree_sitter import QueryCursor
+    HAS_QUERY_CURSOR = True
+except ImportError:
+    QueryCursor = None
+    HAS_QUERY_CURSOR = False
 from grep_ast.tsl import USING_TSL_PACK, get_language, get_parser  # noqa: E402
 
 Tag = namedtuple("Tag", "rel_fname fname line name kind".split())
@@ -250,7 +257,11 @@ class RepoMap:
                 return self.TAGS_CACHE[cache_key]["data"]
 
         # miss!
-        data = list(self.get_tags_raw(fname, rel_fname))
+        try:
+            data = list(self.get_tags_raw(fname, rel_fname))
+        except Exception as err:
+            print(f"Error getting tags for {fname}: {err}")
+            data = []
 
         # Update the cache
         try:
@@ -274,6 +285,16 @@ class RepoMap:
             print(f"Skipping file {fname}: {err}")
             return
 
+        # Check language version compatibility
+        try:
+            from tree_sitter import LANGUAGE_VERSION, MIN_COMPATIBLE_LANGUAGE_VERSION
+            if hasattr(language, 'version'):
+                if language.version < MIN_COMPATIBLE_LANGUAGE_VERSION or language.version > LANGUAGE_VERSION:
+                    print(f"Skipping file {fname}: Incompatible language version {language.version}. Must be between {MIN_COMPATIBLE_LANGUAGE_VERSION} and {LANGUAGE_VERSION}")
+                    return
+        except Exception:
+            pass
+
         query_scm = get_scm_fname(lang)
         if not query_scm.exists():
             return
@@ -285,8 +306,16 @@ class RepoMap:
         tree = parser.parse(bytes(code, "utf-8"))
 
         # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            query = Query(language, query_scm)
+            if HAS_QUERY_CURSOR:
+                cursor = QueryCursor(query)
+                captures = cursor.captures(tree.root_node)
+            else:
+                captures = query.captures(tree.root_node)
+        except Exception as err:
+            print(f"Error querying tags for {fname}: {err}")
+            return
 
         saw = set()
         if USING_TSL_PACK:

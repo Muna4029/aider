@@ -527,6 +527,8 @@ class Commands:
 
         limit = self.coder.main_model.info.get("max_input_tokens") or 0
         if not limit:
+            self.io.tool_output(f"{cost_pad}   unknown tokens remaining in context window")
+            self.io.tool_output(f"{cost_pad}   unknown tokens max context window size")
             return
 
         remaining = limit - total
@@ -863,8 +865,8 @@ class Commands:
                         f"Cannot add {matched_file} as it's not part of the repository"
                     )
             else:
-                if is_image_file(matched_file) and not self.coder.main_model.info.get(
-                    "supports_vision"
+                if is_image_file(matched_file) and not (self.coder.main_model.info.get(
+                    "supports_vision") or "vision" in self.coder.main_model.name.lower()
                 ):
                     self.io.tool_error(
                         f"Cannot add image file {matched_file} as the"
@@ -1335,7 +1337,7 @@ class Commands:
                 self.io.tool_error(f"Not a file or directory: {abs_path}")
 
     def _add_read_only_file(self, abs_path, original_name):
-        if is_image_file(original_name) and not self.coder.main_model.info.get("supports_vision"):
+        if is_image_file(original_name) and not (self.coder.main_model.info.get("supports_vision") or "vision" in self.coder.main_model.name.lower()):
             self.io.tool_error(
                 f"Cannot add image file {original_name} as the"
                 f" {self.coder.main_model.name} does not support images."
