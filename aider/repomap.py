@@ -284,15 +284,23 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        # Support both old API (0.24.x) and new API (0.25.x+)
+        try:
+            # New API uses QueryCursor (0.25.x+)
+            cursor = query.new_cursor()
+            captures = cursor.captures(tree.root_node)
+            all_nodes = list(captures)
+        except AttributeError:
+            # Old API (0.24.x)
+            captures = query.captures(tree.root_node)
+            if USING_TSL_PACK:
+                all_nodes = []
+                for tag, nodes in captures.items():
+                    all_nodes += [(node, tag) for node in nodes]
+            else:
+                all_nodes = list(captures)
 
         saw = set()
-        if USING_TSL_PACK:
-            all_nodes = []
-            for tag, nodes in captures.items():
-                all_nodes += [(node, tag) for node in nodes]
-        else:
-            all_nodes = list(captures)
 
         for node, tag in all_nodes:
             if tag.startswith("name.definition."):

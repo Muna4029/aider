@@ -532,12 +532,12 @@ class Commands:
         if remaining > 1024:
             self.io.tool_output(f"{cost_pad}{fmt(remaining)} tokens remaining in context window")
         elif remaining > 0:
-            self.io.tool_error(
+            self.io.tool_output(
                 f"{cost_pad}{fmt(remaining)} tokens remaining in context window (use /drop or"
                 " /clear to make space)"
             )
         else:
-            self.io.tool_error(
+            self.io.tool_output(
                 f"{cost_pad}{fmt(remaining)} tokens remaining, window exhausted (use /drop or"
                 " /clear to make space)"
             )
