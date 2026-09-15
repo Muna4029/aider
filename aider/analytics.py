@@ -5,8 +5,14 @@ import time
 import uuid
 from pathlib import Path
 
-from mixpanel import MixpanelException
-from posthog import Posthog
+try:
+    from mixpanel import MixpanelException
+except ImportError:
+    from aider.mixpanel import MixpanelException
+try:
+    from posthog import Posthog
+except ImportError:
+    from aider.posthog import Posthog
 
 from aider import __version__
 from aider.dump import dump  # noqa: F401

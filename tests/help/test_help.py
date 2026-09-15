@@ -56,6 +56,10 @@ class TestHelp(unittest.TestCase):
         coder = Coder.create(GPT35, None, io)
         commands = Commands(io, coder)
 
+        # Mock install_help_extra to avoid actually trying to install packages at test time
+        install_help_extra_mock = MagicMock(return_value=True)
+        aider.help.install_help_extra = install_help_extra_mock
+
         help_coder_run = MagicMock(return_value="")
         aider.coders.HelpCoder.run = help_coder_run
 

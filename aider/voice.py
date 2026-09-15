@@ -17,8 +17,15 @@ warnings.filterwarnings(
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 
-from pydub import AudioSegment  # noqa
-from pydub.exceptions import CouldntDecodeError, CouldntEncodeError  # noqa
+try:
+    from pydub import AudioSegment  # noqa
+    from pydub.exceptions import CouldntDecodeError, CouldntEncodeError  # noqa
+except ImportError:
+    from aider.pydub import AudioSegment
+    class CouldntDecodeError(Exception):
+        pass
+    class CouldntEncodeError(Exception):
+        pass
 
 try:
     import soundfile as sf

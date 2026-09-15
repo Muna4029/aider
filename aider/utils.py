@@ -1,7 +1,10 @@
 import itertools
 import os
 import platform
-import oslex
+try:
+    import oslex
+except ImportError:
+    from aider import oslex
 import subprocess
 import sys
 import tempfile

@@ -8,10 +8,22 @@ from collections import OrderedDict
 from os.path import expanduser
 from pathlib import Path
 
-import pyperclip
-from PIL import Image, ImageGrab
-from prompt_toolkit.completion import Completion, PathCompleter
-from prompt_toolkit.document import Document
+try:
+    import pyperclip
+except ImportError:
+    from aider import pyperclip
+try:
+    from PIL import Image, ImageGrab
+except ImportError:
+    from aider.PIL import Image, ImageGrab as ImageGrab
+try:
+    from prompt_toolkit.completion import Completion, PathCompleter
+except ImportError:
+    from aider.prompt_toolkit import Completion, PathCompleter
+try:
+    from prompt_toolkit.document import Document
+except ImportError:
+    from aider.prompt_toolkit import Document
 
 from aider import models, prompts, voice
 from aider.editor import pipe_editor
