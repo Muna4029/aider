@@ -548,7 +548,7 @@ transformers==4.51.3
     # via sentence-transformers
 tree-sitter==0.24.0
     # via tree-sitter-language-pack
-tree-sitter-c-sharp==0.23.1
+tree-sitter-c-sharp==0.21.3
     # via tree-sitter-language-pack
 tree-sitter-embedded-template==0.23.2
     # via tree-sitter-language-pack

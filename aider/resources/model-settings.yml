@@ -111,6 +111,7 @@
   edit_format: diff
   weak_model_name: gpt-4o-mini
   use_repo_map: true
+  supports_vision: true
   reminder: sys
 
 - name: gpt-4-0314

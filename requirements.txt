@@ -466,7 +466,7 @@ tqdm==4.67.1
     # via
     #   -c requirements/common-constraints.txt
     #   tree-sitter-language-pack
-tree-sitter-c-sharp==0.23.1
+tree-sitter-c-sharp==0.21.3
     # via
     #   -c requirements/common-constraints.txt
     #   tree-sitter-language-pack
