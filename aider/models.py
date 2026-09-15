@@ -251,6 +251,20 @@ class ModelInfoManager:
             if openrouter_info:
                 return openrouter_info
 
+        # Provide defaults for known models that may not have complete info
+        if not cached_info and model in ("gpt-4-vision-preview", "gpt-4-1106-vision-preview"):
+            cached_info = {
+                "supports_vision": True,
+                "max_input_tokens": 128000,
+                "max_output_tokens": 4096,
+            }
+
+        if not cached_info and model in ("gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-0613"):
+            cached_info = {
+                "max_input_tokens": 32 * 1024,
+                "max_output_tokens": 32 * 1024,
+            }
+
         return cached_info
 
     def fetch_openrouter_model_info(self, model):
