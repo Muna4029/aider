@@ -1,15 +1,52 @@
 import time
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from requests.exceptions import ConnectionError, ReadTimeout
 
 import aider
 from aider.coders import Coder
 from aider.commands import Commands
-from aider.help import Help, fname_to_url
+from aider.help import Help, fname_to_url, get_help_extra_package, install_help_extra
 from aider.io import InputOutput
 from aider.models import Model
+
+
+class TestGetHelpExtraPackage(unittest.TestCase):
+    def test_local_checkout_resolution(self):
+        """When pyproject.toml exists, should return local path with [help] extras."""
+        pkg = get_help_extra_package()
+        self.assertIn("[help]", pkg)
+        # Should be a path (not a PyPI package name)
+        self.assertNotIn("aider-chat", pkg)
+
+    @patch("aider.help.Path")
+    def test_pinned_release_resolution(self, mock_path):
+        """When pyproject.toml does not exist, should return pinned release."""
+        # Mock Path so that pyproject.toml doesn't exist
+        mock_path_instance = MagicMock()
+        mock_path.return_value = mock_path_instance
+        mock_path_instance.parent = mock_path_instance
+        mock_path_instance.__truediv__.return_value = mock_path_instance
+        mock_path_instance.exists.return_value = False
+
+        pkg = get_help_extra_package()
+        self.assertIn("aider-chat[help]", pkg)
+        self.assertIn("==", pkg)
+
+    @patch("aider.help.get_help_extra_package")
+    def test_install_help_extra_uses_resolved_package(self, mock_get_pkg):
+        """install_help_extra should pass the resolved package to check_pip_install_extra."""
+        mock_get_pkg.return_value = "test-package[help]"
+
+        with patch("aider.help.utils.check_pip_install_extra") as mock_check:
+            io = MagicMock()
+            install_help_extra(io)
+
+            mock_check.assert_called_once()
+            args, _ = mock_check.call_args
+            pip_install_cmd = args[3]
+            self.assertIn("test-package[help]", pip_install_cmd)
 
 
 class TestHelp(unittest.TestCase):
