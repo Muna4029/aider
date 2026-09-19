@@ -231,8 +231,8 @@ class GitRepo:
             attribute_co_authored_by = self.attribute_co_authored_by
 
         # Determine explicit settings (None means use default behavior)
-        author_explicit = attribute_author is not None
-        committer_explicit = attribute_committer is not None
+        author_explicit = attribute_author is None or attribute_author
+        committer_explicit = attribute_committer is None or attribute_committer
 
         # Determine effective settings (apply default True if not explicit)
         effective_author = True if attribute_author is None else attribute_author

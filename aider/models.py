@@ -326,6 +326,16 @@ class Model(ModelSettings):
             (ms for ms in MODEL_SETTINGS if ms.name == "aider/extra_params"), None
         )
 
+
+        # Auto-load model metadata from resources if not already loaded
+        if not model_info_manager.local_model_metadata:
+            try:
+                resource_metadata = importlib.resources.files("aider.resources").joinpath("model-metadata.json")
+                if os.path.exists(str(resource_metadata)):
+                    register_litellm_models([str(resource_metadata)])
+            except Exception:
+                pass
+
         self.info = self.get_model_info(model)
 
         # Are all needed keys/params available?

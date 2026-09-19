@@ -274,6 +274,33 @@ print(my_function(3, 4))
             del repo_map
 
 
+
+    def test_get_tags_handles_exceptions(self):
+        # Test that get_tags() handles exceptions from get_tags_raw() gracefully
+        with IgnorantTemporaryDirectory() as temp_dir:
+            test_file = os.path.join(temp_dir, 'test.py')
+            with open(test_file, 'w') as f:
+                f.write('def foo():\n    pass\n')
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            # Force get_tags_raw to raise ValueError
+            original_get_tags_raw = repo_map.get_tags_raw
+            def failing_get_tags_raw(fname, rel_fname):
+                raise ValueError('boom')
+            repo_map.get_tags_raw = failing_get_tags_raw
+
+            # Should return [] instead of propagating the exception
+            result = repo_map.get_tags(test_file, 'test.py')
+            self.assertEqual(result, [])
+
+            # Restore original method
+            repo_map.get_tags_raw = original_get_tags_raw
+
+            del repo_map
+
+
 class TestRepoMapTypescript(unittest.TestCase):
     def setUp(self):
         self.GPT35 = Model("gpt-3.5-turbo")
@@ -489,6 +516,8 @@ class TestRepoMapAllLanguages(unittest.TestCase):
 
         # If we reach here, the maps are identical
         self.assertEqual(generated_map_str, expected_map, "Generated map matches expected map")
+
+
 
 
 if __name__ == "__main__":

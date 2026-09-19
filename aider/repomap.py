@@ -24,6 +24,7 @@ from aider.waiting import Spinner
 # tree_sitter is throwing a FutureWarning
 warnings.simplefilter("ignore", category=FutureWarning)
 from grep_ast.tsl import USING_TSL_PACK, get_language, get_parser  # noqa: E402
+import tree_sitter
 
 Tag = namedtuple("Tag", "rel_fname fname line name kind".split())
 
@@ -250,7 +251,10 @@ class RepoMap:
                 return self.TAGS_CACHE[cache_key]["data"]
 
         # miss!
-        data = list(self.get_tags_raw(fname, rel_fname))
+        try:
+            data = list(self.get_tags_raw(fname, rel_fname))
+        except Exception:
+            return []
 
         # Update the cache
         try:
@@ -282,11 +286,17 @@ class RepoMap:
         code = self.io.read_text(fname)
         if not code:
             return
-        tree = parser.parse(bytes(code, "utf-8"))
 
-        # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            tree = parser.parse(bytes(code, "utf-8"))
+
+            # Run the tags queries
+            query = language.query(query_scm)
+            cursor = tree_sitter.QueryCursor(query)
+            captures = cursor.captures(tree.root_node)
+        except Exception as err:
+            print(f"Skipping file {fname}: {err}")
+            return
 
         saw = set()
         if USING_TSL_PACK:

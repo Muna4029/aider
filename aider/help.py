@@ -17,7 +17,8 @@ warnings.simplefilter("ignore", category=FutureWarning)
 
 def install_help_extra(io):
     pip_install_cmd = [
-        "aider-chat[help]",
+        "llama-index-embeddings-huggingface",
+        "llama-index-core==0.12.26",
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
     ]

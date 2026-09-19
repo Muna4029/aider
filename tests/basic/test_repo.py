@@ -306,16 +306,16 @@ class TestRepo(unittest.TestCase):
             commit = raw_repo.head.commit
             self.assertIn("Co-authored-by: aider (gpt-test) <noreply@aider.chat>", commit.message)
             self.assertEqual(commit.message.splitlines()[0], "Aider edit")
-            # With default (None), co-authored-by takes precedence
+            # With default (None), suffix should be added
             self.assertEqual(
                 commit.author.name,
-                "Test User",
-                msg="Author name should not be modified when co-authored-by takes precedence",
+                "Test User (aider)",
+                msg="Author name should be modified when attribute_author=None",
             )
             self.assertEqual(
                 commit.committer.name,
-                "Test User",
-                msg="Committer name should not be modified when co-authored-by takes precedence",
+                "Test User (aider)",
+                msg="Committer name should be modified when attribute_committer=None",
             )
 
     @unittest.skipIf(platform.system() == "Windows", "Git env var behavior differs on Windows")
