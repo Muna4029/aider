@@ -15,9 +15,22 @@ from aider.help_pats import exclude_website_pats
 warnings.simplefilter("ignore", category=FutureWarning)
 
 
+def get_help_extra_package():
+    """Return the appropriate package requirement for help extras.
+
+    If the repository root contains a pyproject.toml (local checkout),
+    return the local project path with [help] extra.
+    Otherwise return the pinned release requirement.
+    """
+    repo_root = Path(__file__).resolve().parent.parent
+    if (repo_root / "pyproject.toml").exists():
+        return str(repo_root) + "[help]"
+    return f"aider-chat[help]=={__version__}"
+
+
 def install_help_extra(io):
     pip_install_cmd = [
-        "aider-chat[help]",
+        get_help_extra_package(),
         "--extra-index-url",
         "https://download.pytorch.org/whl/cpu",
     ]

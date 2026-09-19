@@ -156,6 +156,15 @@ class ModelInfoManager:
         # Manager for the cached OpenRouter model database
         self.openrouter_manager = OpenRouterModelManager()
 
+        # Load bundled model metadata from package resources
+        try:
+            bundled_metadata_file = importlib.resources.files("aider.resources").joinpath("model-metadata.json")
+            if bundled_metadata_file.exists():
+                bundled_data = json5.loads(bundled_metadata_file.read_text())
+                self.local_model_metadata.update(bundled_data)
+        except Exception:
+            pass
+
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl
         if hasattr(self, "openrouter_manager"):
