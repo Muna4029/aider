@@ -1,4 +1,5 @@
 import base64
+import contextlib
 import functools
 import os
 import shutil
@@ -792,6 +793,23 @@ class InputOutput:
             return True
         return False
 
+    @contextlib.contextmanager
+    def with_history_disabled(self):
+        """Context manager to temporarily disable history buffer append.
+
+        Prevents confirm/prompt responses from being added to the input history.
+        """
+        orig_buf_append = None
+        try:
+            if self.prompt_session and self.prompt_session.default_buffer is not None:
+                orig_buf_append = self.prompt_session.default_buffer.append_to_history
+                self.prompt_session.default_buffer.append_to_history = lambda: None
+            yield
+        finally:
+            if orig_buf_append is not None and self.prompt_session and self.prompt_session.default_buffer is not None:
+                self.prompt_session.default_buffer.append_to_history = orig_buf_append
+
+
     @restore_multiline
     def confirm_ask(
         self,
@@ -862,19 +880,19 @@ class InputOutput:
         else:
             while True:
                 try:
-                    if self.prompt_session:
-                        res = self.prompt_session.prompt(
-                            question,
-                            style=style,
-                            complete_while_typing=False,
-                        )
-                    else:
-                        res = input(question)
+                    with self.with_history_disabled():
+                        if self.prompt_session:
+                            res = self.prompt_session.prompt(
+                                question,
+                                style=style,
+                                complete_while_typing=False,
+                            )
+                        else:
+                            res = input(question)
                 except EOFError:
                     # Treat EOF (Ctrl+D) as if the user pressed Enter
                     res = default
                     break
-
                 if not res:
                     res = default
                     break

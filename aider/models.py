@@ -191,7 +191,23 @@ class ModelInfoManager:
             except OSError:
                 pass
 
+    def _load_bundled_metadata(self):
+        # Load bundled model metadata from package resources if not already loaded.
+        if self.local_model_metadata:
+            return
+        try:
+            with importlib.resources.open_text('aider.resources', 'model-metadata.json') as f:
+                import json5
+                model_def = json5.load(f)
+                if model_def:
+                    self.local_model_metadata.update(model_def)
+        except Exception:
+            pass
+
     def get_model_from_cached_json_db(self, model):
+        # Ensure bundled metadata is loaded
+        self._load_bundled_metadata()
+
         data = self.local_model_metadata.get(model)
         if data:
             return data
