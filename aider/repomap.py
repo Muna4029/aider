@@ -250,7 +250,10 @@ class RepoMap:
                 return self.TAGS_CACHE[cache_key]["data"]
 
         # miss!
-        data = list(self.get_tags_raw(fname, rel_fname))
+        try:
+            data = list(self.get_tags_raw(fname, rel_fname))
+        except ValueError:
+            return []
 
         # Update the cache
         try:
@@ -286,10 +289,16 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        try:
+            captures = query.captures(tree.root_node)
+        except AttributeError:
+            # tree-sitter >= 0.24 uses QueryCursor interface
+            from tree_sitter import QueryCursor
+            cursor = QueryCursor(query)
+            captures = cursor.captures(tree.root_node)
 
         saw = set()
-        if USING_TSL_PACK:
+        if USING_TSL_PACK or isinstance(captures, dict):
             all_nodes = []
             for tag, nodes in captures.items():
                 all_nodes += [(node, tag) for node in nodes]

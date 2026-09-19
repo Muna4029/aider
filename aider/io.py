@@ -6,6 +6,7 @@ import signal
 import subprocess
 import time
 import webbrowser
+from contextlib import contextmanager
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -792,6 +793,21 @@ class InputOutput:
             return True
         return False
 
+
+    @contextmanager
+    def with_history_disabled(self):
+        """Context manager to temporarily disable input history recording."""
+        orig_buf_append = None
+        try:
+            if self.prompt_session and self.prompt_session.history:
+                orig_buf_append = self.prompt_session.history.append_string
+                self.prompt_session.history.append_string = lambda s: None
+            yield
+        finally:
+            if orig_buf_append is not None:
+                self.prompt_session.history.append_string = orig_buf_append
+
+
     @restore_multiline
     def confirm_ask(
         self,
@@ -863,11 +879,12 @@ class InputOutput:
             while True:
                 try:
                     if self.prompt_session:
-                        res = self.prompt_session.prompt(
-                            question,
-                            style=style,
-                            complete_while_typing=False,
-                        )
+                        with self.with_history_disabled():
+                            res = self.prompt_session.prompt(
+                                question,
+                                style=style,
+                                complete_while_typing=False,
+                            )
                     else:
                         res = input(question)
                 except EOFError:
