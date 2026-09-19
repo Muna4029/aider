@@ -146,8 +146,19 @@ class ModelInfoManager:
         self.cache_file = self.cache_dir / "model_prices_and_context_window.json"
         self.content = None
         self.local_model_metadata = {}
+        self._load_local_metadata()
         self.verify_ssl = True
         self._cache_loaded = False
+
+    def _load_local_metadata(self):
+        """Load local model metadata from the bundled resource file."""
+        try:
+            with importlib.resources.open_text("aider.resources", "model-metadata.json") as f:
+                data = json5.load(f)
+                if data:
+                    self.local_model_metadata.update(data)
+        except Exception:
+            pass
 
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl

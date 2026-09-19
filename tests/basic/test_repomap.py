@@ -12,6 +12,7 @@ from aider.io import InputOutput
 from aider.models import Model
 from aider.repomap import RepoMap
 from aider.utils import GitTemporaryDirectory, IgnorantTemporaryDirectory
+from unittest.mock import patch
 
 
 class TestRepoMap(unittest.TestCase):
@@ -68,7 +69,9 @@ class TestRepoMap(unittest.TestCase):
 
             # Initialize RepoMap with refresh="files"
             io = InputOutput()
-            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io, refresh="files")
+            repo_map = RepoMap(
+                main_model=self.GPT35, root=temp_dir, io=io, refresh="files"
+            )
             other_files = [
                 os.path.join(temp_dir, "file1.py"),
                 os.path.join(temp_dir, "file2.py"),
@@ -89,7 +92,9 @@ class TestRepoMap(unittest.TestCase):
             # Get another repo map
             second_map = repo_map.get_repo_map([], other_files)
             self.assertEqual(
-                initial_map, second_map, "RepoMap should not change with refresh='files'"
+                initial_map,
+                second_map,
+                "RepoMap should not change with refresh='files'",
             )
 
             other_files = [
@@ -122,9 +127,14 @@ class TestRepoMap(unittest.TestCase):
 
             # Initialize RepoMap with refresh="auto"
             io = InputOutput()
-            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io, refresh="auto")
+            repo_map = RepoMap(
+                main_model=self.GPT35, root=temp_dir, io=io, refresh="auto"
+            )
             chat_files = []
-            other_files = [os.path.join(temp_dir, "file1.py"), os.path.join(temp_dir, "file2.py")]
+            other_files = [
+                os.path.join(temp_dir, "file1.py"),
+                os.path.join(temp_dir, "file2.py"),
+            ]
 
             # Force the RepoMap computation to take more than 1 second
             original_get_ranked_tags = repo_map.get_ranked_tags
@@ -148,13 +158,19 @@ class TestRepoMap(unittest.TestCase):
             # Get another repo map without force_refresh
             second_map = repo_map.get_repo_map(chat_files, other_files)
             self.assertEqual(
-                initial_map, second_map, "RepoMap should not change without force_refresh"
+                initial_map,
+                second_map,
+                "RepoMap should not change without force_refresh",
             )
 
             # Get a new repo map with force_refresh
-            final_map = repo_map.get_repo_map(chat_files, other_files, force_refresh=True)
+            final_map = repo_map.get_repo_map(
+                chat_files, other_files, force_refresh=True
+            )
             self.assertIn("functionNEW", final_map)
-            self.assertNotEqual(initial_map, final_map, "RepoMap should change with force_refresh")
+            self.assertNotEqual(
+                initial_map, final_map, "RepoMap should change with force_refresh"
+            )
 
             # close the open cache files, so Windows won't error
             del repo_map
@@ -388,13 +404,28 @@ class TestRepoMapAllLanguages(unittest.TestCase):
     def test_language_ocaml_interface(self):
         self._test_language_repo_map("ocaml_interface", "mli", "Greeter")
 
+    def test_get_tags_raw_exception_fallback(self):
+        """Test that get_tags returns [] when get_tags_raw raises an exception."""
+        with IgnorantTemporaryDirectory() as temp_dir:
+            test_file = os.path.join(temp_dir, "test.py")
+            with open(test_file, "w", encoding="utf-8") as f:
+                f.write("def foo():\n    pass\n")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+            with patch.object(repo_map, "get_tags_raw", side_effect=ValueError("boom")):
+                tags = repo_map.get_tags(test_file, "test.py")
+                self.assertEqual(tags, [])
+
     def _test_language_repo_map(self, lang, key, symbol):
         """Helper method to test repo map generation for a specific language."""
         # Get the fixture file path and name based on language
         fixture_dir = self.fixtures_dir / lang
         filename = f"test.{key}"
         fixture_path = fixture_dir / filename
-        self.assertTrue(fixture_path.exists(), f"Fixture file missing for {lang}: {fixture_path}")
+        self.assertTrue(
+            fixture_path.exists(), f"Fixture file missing for {lang}: {fixture_path}"
+        )
 
         # Read the fixture content
         with open(fixture_path, "r", encoding="utf-8") as f:
@@ -416,7 +447,9 @@ class TestRepoMapAllLanguages(unittest.TestCase):
 
             # Check if the result contains all the expected files and symbols
             self.assertIn(
-                filename, result, f"File for language {lang} not found in repo map: {result}"
+                filename,
+                result,
+                f"File for language {lang} not found in repo map: {result}",
             )
             self.assertIn(
                 symbol,
@@ -429,7 +462,9 @@ class TestRepoMapAllLanguages(unittest.TestCase):
 
     def test_repo_map_sample_code_base(self):
         # Path to the sample code base
-        sample_code_base = Path(__file__).parent.parent / "fixtures" / "sample-code-base"
+        sample_code_base = (
+            Path(__file__).parent.parent / "fixtures" / "sample-code-base"
+        )
 
         # Path to the expected repo map file
         expected_map_file = (
@@ -437,7 +472,9 @@ class TestRepoMapAllLanguages(unittest.TestCase):
         )
 
         # Ensure the paths exist
-        self.assertTrue(sample_code_base.exists(), "Sample code base directory not found")
+        self.assertTrue(
+            sample_code_base.exists(), "Sample code base directory not found"
+        )
         self.assertTrue(expected_map_file.exists(), "Expected repo map file not found")
 
         # Initialize RepoMap with the sample code base as root
@@ -488,7 +525,9 @@ class TestRepoMapAllLanguages(unittest.TestCase):
             self.fail(f"Generated map differs from expected map:\n{diff_str}")
 
         # If we reach here, the maps are identical
-        self.assertEqual(generated_map_str, expected_map, "Generated map matches expected map")
+        self.assertEqual(
+            generated_map_str, expected_map, "Generated map matches expected map"
+        )
 
 
 if __name__ == "__main__":
