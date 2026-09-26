@@ -156,6 +156,27 @@ class ModelInfoManager:
         # Manager for the cached OpenRouter model database
         self.openrouter_manager = OpenRouterModelManager()
 
+        # Load model metadata from resources
+        self._load_model_metadata_from_resources()
+
+    def _load_model_metadata_from_resources(self):
+        """Load model metadata from the resources folder."""
+        try:
+            resource_metadata = importlib_resources.files("aider.resources").joinpath(
+                "model-metadata.json"
+            )
+            if resource_metadata.exists():
+                try:
+                    data = resource_metadata.read_text()
+                    if data.strip():
+                        model_def = json5.loads(data)
+                        if model_def:
+                            self.local_model_metadata.update(model_def)
+                except Exception as e:
+                    pass  # Silently ignore errors loading metadata
+        except Exception as e:
+            pass  # Silently ignore errors
+
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl
         if hasattr(self, "openrouter_manager"):
