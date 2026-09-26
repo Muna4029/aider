@@ -231,7 +231,7 @@ class ModelInfoManager:
         cached_info = self.get_model_from_cached_json_db(model)
 
         litellm_info = None
-        if litellm._lazy_module or not cached_info:
+        if getattr(litellm, "_lazy_module", False) or not cached_info:
             try:
                 litellm_info = litellm.get_model_info(model)
             except Exception as ex:
