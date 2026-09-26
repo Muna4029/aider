@@ -979,7 +979,9 @@ class Model(ModelSettings):
 
             self.github_copilot_token_to_open_ai_key(kwargs["extra_headers"])
 
-        res = litellm.completion(tools=[{"googleSearch": {}}], **kwargs)
+        if "tools" not in kwargs:
+            kwargs["tools"] = [{"googleSearch": {}}]
+        res = litellm.completion(**kwargs)
         return hash_object, res
 
     def simple_send_with_retries(self, messages):
