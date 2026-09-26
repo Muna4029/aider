@@ -524,7 +524,7 @@ class Commands:
         self.io.tool_output("=" * (width + cost_width + 1))
         self.io.tool_output(f"${total_cost:7.4f} {fmt(total)} tokens total")  # noqa: E231
 
-        limit = self.coder.main_model.info.get("max_input_tokens") or 0
+        limit = self.coder.main_model.info.get("max_input_tokens") or 4096
         if not limit:
             return
 
