@@ -1,15 +1,34 @@
 import time
 import unittest
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from requests.exceptions import ConnectionError, ReadTimeout
 
 import aider
 from aider.coders import Coder
 from aider.commands import Commands
-from aider.help import Help, fname_to_url
+from aider.help import Help, fname_to_url, get_help_extra_package, install_help_extra
 from aider.io import InputOutput
 from aider.models import Model
+
+
+class TestInstallHelpExtra(unittest.TestCase):
+    def test_get_help_extra_package_uses_local_checkout(self):
+        project_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(get_help_extra_package(), f"{project_root}[help]")
+
+    @patch("aider.help.utils.check_pip_install_extra", return_value=True)
+    def test_install_help_extra_uses_local_checkout(self, check_pip_install_extra):
+        io = MagicMock()
+        self.assertTrue(install_help_extra(io))
+        pip_install_cmd = check_pip_install_extra.call_args.args[3]
+        self.assertEqual(pip_install_cmd[0], get_help_extra_package())
+
+    def test_get_help_extra_package_pins_installed_release(self):
+        with patch("aider.help.__file__", "/site-packages/aider/help.py"):
+            with patch("aider.help.__version__", "1.2.3"):
+                self.assertEqual(get_help_extra_package(), "aider-chat[help]==1.2.3")
 
 
 class TestHelp(unittest.TestCase):
