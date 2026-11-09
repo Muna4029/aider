@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import io
+import threading
 import time
 
 from rich import box
@@ -12,6 +13,7 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 from aider.dump import dump  # noqa: F401
+from aider.utils import Spinner
 
 _text_prefix = """
 # Header
@@ -115,9 +117,20 @@ class MarkdownStream:
         else:
             self.mdargs = dict()
 
-        # Initialize rich Live display with empty text
-        self.live = Live(Text(""), refresh_per_second=1.0 / self.min_delay)
-        self.live.start()
+        # Defer Live creation until the first update so the Spinner can be shown.
+        self.live = None
+        self.spinner = Spinner("Waiting for LLM")
+        self._spinner_stop_event = threading.Event()
+        self._spinner_thread = threading.Thread(target=self._spin, daemon=True)
+        self._spinner_thread.start()
+        self._live_started = False
+
+    def _spin(self):
+        """Background thread that keeps the spinner moving until stopped."""
+        while not self._spinner_stop_event.is_set():
+            time.sleep(0.1)
+            self.spinner.step()
+        self.spinner.end()
 
     def _render_markdown_to_lines(self, text):
         """Render markdown text to a list of lines.
@@ -146,6 +159,15 @@ class MarkdownStream:
             except Exception:
                 pass  # Ignore any errors during cleanup
 
+        # Ensure the spinner thread is properly shut down
+        if hasattr(self, "_spinner_stop_event"):
+            self._spinner_stop_event.set()
+        if hasattr(self, "_spinner_thread") and self._spinner_thread.is_alive():
+            try:
+                self._spinner_thread.join(timeout=0.1)
+            except Exception:
+                pass
+
     def update(self, text, final=False):
         """Update the displayed markdown content.
 
@@ -163,6 +185,16 @@ class MarkdownStream:
         Markdown going to the console works better in terminal scrollback buffers.
         The live window doesn't play nice with terminal scrollback.
         """
+        # On the first call, stop the spinner and start the Live renderer
+        if not getattr(self, "_live_started", False):
+            if hasattr(self, "_spinner_stop_event"):
+                self._spinner_stop_event.set()
+                if hasattr(self, "_spinner_thread"):
+                    self._spinner_thread.join()
+            self.live = Live(Text(""), refresh_per_second=1.0 / self.min_delay)
+            self.live.start()
+            self._live_started = True
+
         now = time.time()
         # Throttle updates to maintain smooth rendering
         if not final and now - self.when < self.min_delay:
