@@ -78,9 +78,9 @@ ANTHROPIC_MODELS = [ln.strip() for ln in ANTHROPIC_MODELS.splitlines() if ln.str
 # Mapping of model aliases to their canonical names
 MODEL_ALIASES = {
     # Claude models
-    "sonnet": "anthropic/claude-sonnet-4-20250514",
+    "sonnet": "anthropic/claude-3-7-sonnet-20250219",
     "haiku": "claude-3-5-haiku-20241022",
-    "opus": "claude-opus-4-20250514",
+    "opus": "claude-3-opus-20240229",
     # GPT models
     "4": "gpt-4-0613",
     "4o": "gpt-4o",
@@ -151,8 +151,23 @@ class ModelInfoManager:
         self.verify_ssl = True
         self._cache_loaded = False
 
+        self._load_builtin_local_model_metadata()
+
         # Manager for the cached OpenRouter model database
         self.openrouter_manager = OpenRouterModelManager()
+
+    def _load_builtin_local_model_metadata(self):
+        try:
+            resource_path = importlib.resources.files("aider.resources").joinpath(
+                "model-metadata.json"
+            )
+            if not resource_path.is_file():
+                return
+            model_def = json5.loads(resource_path.read_text())
+            if model_def:
+                self.local_model_metadata.update(model_def)
+        except Exception:
+            pass
 
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl

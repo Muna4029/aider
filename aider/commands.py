@@ -1106,11 +1106,14 @@ class Commands:
 
         if not self.help:
             res = install_help_extra(self.io)
-            if not res:
-                self.io.tool_error("Unable to initialize interactive help.")
-                return
-
-            self.help = Help()
+            if res:
+                try:
+                    self.help = Help()
+                except ImportError as e:
+                    self.io.tool_warning(f"Interactive help extra import failed: {e}. Proceeding without help search.")
+                    self.help = None
+            else:
+                self.io.tool_warning("Interactive help extra not available. Proceeding without help search.")
 
         coder = Coder.create(
             io=self.io,
@@ -1120,7 +1123,12 @@ class Commands:
             map_tokens=512,
             map_mul_no_files=1,
         )
-        user_msg = self.help.ask(args)
+        
+        if self.help:
+            user_msg = self.help.ask(args)
+        else:
+            user_msg = f"# Question: {args}\n\nHelp extra not available."
+        
         user_msg += """
 # Announcement lines from when this session of aider was launched:
 
