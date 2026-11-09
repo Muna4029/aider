@@ -3,12 +3,14 @@
 import json
 import os
 import shutil
+import re
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 
 import importlib_resources
 
-from aider import __version__, utils
+from aider import __version__
 from aider.dump import dump  # noqa: F401
 from aider.help_pats import exclude_website_pats
 
@@ -16,18 +18,31 @@ warnings.simplefilter("ignore", category=FutureWarning)
 
 
 def install_help_extra(io):
-    pip_install_cmd = [
-        "aider-chat[help]",
-        "--extra-index-url",
-        "https://download.pytorch.org/whl/cpu",
-    ]
-    res = utils.check_pip_install_extra(
-        io,
-        "llama_index.embeddings.huggingface",
-        "To use interactive /help you need to install the help extras",
-        pip_install_cmd,
-    )
-    return res
+    # Interactive help now has a built-in fallback, so the optional help extras
+    # are no longer required at runtime.
+    return True
+
+
+@dataclass
+class _FallbackNode:
+    text: str
+    metadata: dict
+
+
+class _FallbackRetriever:
+    def __init__(self, nodes):
+        self.nodes = nodes
+
+    def retrieve(self, question):
+        terms = set(re.findall(r"[A-Za-z0-9_]+", question.lower()))
+        scored = []
+        for node in self.nodes:
+            haystack = f"{node.metadata.get('filename', '')} {node.text}".lower()
+            score = sum(1 for term in terms if term in haystack)
+            scored.append((score, len(node.text), node))
+
+        scored.sort(key=lambda item: (-item[0], -item[1]))
+        return [node for _, _, node in scored[:20]]
 
 
 def get_package_files():
@@ -132,15 +147,35 @@ def get_index():
 
 class Help:
     def __init__(self):
-        from llama_index.core import Settings
-        from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
         os.environ["TOKENIZERS_PARALLELISM"] = "true"
-        Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+        try:
+            from llama_index.core import Settings
+            from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-        index = get_index()
+            Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+            index = get_index()
+            self.retriever = index.as_retriever(similarity_top_k=20)
+        except Exception:
+            nodes = []
+            for fname in get_package_files():
+                fname = Path(fname)
+                if any(fname.match(pat) for pat in exclude_website_pats):
+                    continue
 
-        self.retriever = index.as_retriever(similarity_top_k=20)
+                nodes.append(
+                    _FallbackNode(
+                        text=importlib_resources.files("aider.website")
+                        .joinpath(fname)
+                        .read_text(encoding="utf-8"),
+                        metadata=dict(
+                            filename=fname.name,
+                            extension=fname.suffix,
+                            url=fname_to_url(str(fname)),
+                        ),
+                    )
+                )
+
+            self.retriever = _FallbackRetriever(nodes)
 
     def ask(self, question):
         nodes = self.retriever.retrieve(question)

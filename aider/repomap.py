@@ -1,6 +1,7 @@
 import colorsys
 import math
 import os
+import re
 import random
 import shutil
 import sqlite3
@@ -265,26 +266,34 @@ class RepoMap:
         if not lang:
             return
 
+        code = self.io.read_text(fname)
+        if not code:
+            return
+
         try:
             language = get_language(lang)
             parser = get_parser(lang)
         except Exception as err:
             print(f"Skipping file {fname}: {err}")
+            yield from self._fallback_tags_from_code(fname, rel_fname, code, lang)
             return
 
         query_scm = get_scm_fname(lang)
         if not query_scm.exists():
+            yield from self._fallback_tags_from_code(fname, rel_fname, code, lang)
             return
         query_scm = query_scm.read_text()
 
-        code = self.io.read_text(fname)
-        if not code:
-            return
-        tree = parser.parse(bytes(code, "utf-8"))
+        try:
+            tree = parser.parse(bytes(code, "utf-8"))
 
-        # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+            # Run the tags queries
+            query = language.query(query_scm)
+            captures = query.captures(tree.root_node)
+        except Exception as err:
+            print(f"Skipping file {fname}: {err}")
+            yield from self._fallback_tags_from_code(fname, rel_fname, code, lang)
+            return
 
         saw = set()
         if USING_TSL_PACK:
@@ -340,6 +349,36 @@ class RepoMap:
                 kind="ref",
                 line=-1,
             )
+
+    def _fallback_tags_from_code(self, fname, rel_fname, code, lang):
+        if lang != "csharp":
+            return
+
+        patterns = [
+            re.compile(
+                r"^\s*(?:public|private|protected|internal|static|sealed|abstract|\s)*"
+                r"(?:partial\s+)?(?:class|interface|struct|record)\s+"
+                r"([A-Za-z_][A-Za-z0-9_]*)"
+            ),
+            re.compile(
+                r"^\s*(?:public|private|protected|internal|static|async|\s)*"
+                r"[\w<>\[\], ?]+\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("
+            ),
+        ]
+
+        for lineno, line in enumerate(code.splitlines()):
+            for pattern in patterns:
+                match = pattern.search(line)
+                if not match:
+                    continue
+                yield Tag(
+                    rel_fname=rel_fname,
+                    fname=fname,
+                    name=match.group(1),
+                    kind="def",
+                    line=lineno,
+                )
+                break
 
     def get_ranked_tags(
         self, chat_fnames, other_fnames, mentioned_fnames, mentioned_idents, progress=None
@@ -696,28 +735,53 @@ class RepoMap:
             if not code.endswith("\n"):
                 code += "\n"
 
-            context = TreeContext(
-                rel_fname,
-                code,
-                color=False,
-                line_number=False,
-                child_context=False,
-                last_line=False,
-                margin=0,
-                mark_lois=False,
-                loi_pad=0,
-                # header_max=30,
-                show_top_of_file_parent_scope=False,
-            )
-            self.tree_context_cache[rel_fname] = {"context": context, "mtime": mtime}
+            try:
+                context = TreeContext(
+                    rel_fname,
+                    code,
+                    color=False,
+                    line_number=False,
+                    child_context=False,
+                    last_line=False,
+                    margin=0,
+                    mark_lois=False,
+                    loi_pad=0,
+                    # header_max=30,
+                    show_top_of_file_parent_scope=False,
+                )
+                self.tree_context_cache[rel_fname] = {"context": context, "mtime": mtime}
+            except Exception:
+                self.tree_context_cache[rel_fname] = {"context": None, "mtime": mtime}
+                return self._render_tree_fallback(code, lois)
 
         context = self.tree_context_cache[rel_fname]["context"]
+        if context is None:
+            code = self.io.read_text(abs_fname) or ""
+            return self._render_tree_fallback(code, lois)
         context.lines_of_interest = set()
         context.add_lines_of_interest(lois)
         context.add_context()
         res = context.format()
         self.tree_cache[key] = res
         return res
+
+    def _render_tree_fallback(self, code, lois):
+        lines = code.splitlines()
+        if not lines:
+            return ""
+
+        if lois:
+            start_line = max(min(lois) - 3, 0)
+            end_line = min(max(lois) + 4, len(lines))
+        else:
+            start_line = 0
+            end_line = min(len(lines), 12)
+
+        rendered = []
+        for lineno in range(start_line, end_line):
+            rendered.append(f"{lineno + 1: 3}│{lines[lineno]}")
+
+        return "\n".join(rendered) + "\n"
 
     def to_tree(self, tags, chat_rel_fnames):
         if not tags:
