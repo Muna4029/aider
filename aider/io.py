@@ -30,7 +30,6 @@ from rich.color import ColorParseError
 from rich.columns import Columns
 from rich.console import Console
 from rich.markdown import Markdown
-from rich.panel import Panel
 from rich.style import Style as RichStyle
 from rich.text import Text
 
@@ -1025,7 +1024,7 @@ class InputOutput:
             pretty = self.pretty
 
         if pretty:
-            show_resp = Panel(Markdown(message, **self.get_markdown_args()))
+            show_resp = Markdown(message, **self.get_markdown_args())
         else:
             show_resp = Text(message or "(empty response)")
 
