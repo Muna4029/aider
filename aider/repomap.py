@@ -15,6 +15,10 @@ from diskcache import Cache
 from grep_ast import TreeContext, filename_to_lang
 from pygments.lexers import guess_lexer_for_filename
 from pygments.token import Token
+try:
+    from tree_sitter import QueryCursor
+except Exception:
+    QueryCursor = None
 from tqdm import tqdm
 
 from aider.dump import dump
@@ -227,6 +231,13 @@ class RepoMap:
         except FileNotFoundError:
             self.io.tool_warning(f"File not found error: {fname}")
 
+    def warn_tags_error(self, fname, err):
+        message = f"Skipping tags for {fname}: {err}"
+        if self.io:
+            self.io.tool_warning(message)
+        else:
+            warnings.warn(message)
+
     def get_tags(self, fname, rel_fname):
         # Check if the file is in the cache and if the modification time has not changed
         file_mtime = self.get_mtime(fname)
@@ -248,7 +259,11 @@ class RepoMap:
                 return self.TAGS_CACHE[cache_key]["data"]
 
         # miss!
-        data = list(self.get_tags_raw(fname, rel_fname))
+        try:
+            data = list(self.get_tags_raw(fname, rel_fname))
+        except Exception as err:
+            self.warn_tags_error(fname, err)
+            return []
 
         # Update the cache
         try:
@@ -261,85 +276,98 @@ class RepoMap:
         return data
 
     def get_tags_raw(self, fname, rel_fname):
-        lang = filename_to_lang(fname)
-        if not lang:
-            return
-
         try:
-            language = get_language(lang)
-            parser = get_parser(lang)
-        except Exception as err:
-            print(f"Skipping file {fname}: {err}")
-            return
+            lang = filename_to_lang(fname)
+            if not lang:
+                return
 
-        query_scm = get_scm_fname(lang)
-        if not query_scm.exists():
-            return
-        query_scm = query_scm.read_text()
+            try:
+                language = get_language(lang)
+                parser = get_parser(lang)
+            except Exception as err:
+                self.warn_tags_error(fname, err)
+                return
 
-        code = self.io.read_text(fname)
-        if not code:
-            return
-        tree = parser.parse(bytes(code, "utf-8"))
+            query_scm = get_scm_fname(lang)
+            if not query_scm.exists():
+                return
+            query_scm = query_scm.read_text()
 
-        # Run the tags queries
-        query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+            code = self.io.read_text(fname)
+            if not code:
+                return
+            tree = parser.parse(bytes(code, "utf-8"))
 
-        saw = set()
-        if USING_TSL_PACK:
-            all_nodes = []
-            for tag, nodes in captures.items():
-                all_nodes += [(node, tag) for node in nodes]
-        else:
-            all_nodes = list(captures)
-
-        for node, tag in all_nodes:
-            if tag.startswith("name.definition."):
-                kind = "def"
-            elif tag.startswith("name.reference."):
-                kind = "ref"
+            # Run the tags queries
+            query = language.query(query_scm)
+            if QueryCursor is not None:
+                try:
+                    cursor = QueryCursor(query)
+                    captures = cursor.captures(tree.root_node)
+                except Exception:
+                    captures = query.captures(tree.root_node)
             else:
-                continue
+                captures = query.captures(tree.root_node)
 
-            saw.add(kind)
+            saw = set()
+            if USING_TSL_PACK:
+                all_nodes = []
+                for tag, nodes in captures.items():
+                    all_nodes += [(node, tag) for node in nodes]
+            else:
+                all_nodes = list(captures)
 
-            result = Tag(
-                rel_fname=rel_fname,
-                fname=fname,
-                name=node.text.decode("utf-8"),
-                kind=kind,
-                line=node.start_point[0],
-            )
+            for node, tag in all_nodes:
+                try:
+                    if tag.startswith("name.definition."):
+                        kind = "def"
+                    elif tag.startswith("name.reference."):
+                        kind = "ref"
+                    else:
+                        continue
 
-            yield result
+                    saw.add(kind)
 
-        if "ref" in saw:
-            return
-        if "def" not in saw:
-            return
+                    result = Tag(
+                        rel_fname=rel_fname,
+                        fname=fname,
+                        name=node.text.decode("utf-8"),
+                        kind=kind,
+                        line=node.start_point[0],
+                    )
 
-        # We saw defs, without any refs
-        # Some tags files only provide defs (cpp, for example)
-        # Use pygments to backfill refs
+                    yield result
+                except Exception as err:
+                    self.warn_tags_error(fname, err)
 
-        try:
-            lexer = guess_lexer_for_filename(fname, code)
-        except Exception:  # On Windows, bad ref to time.clock which is deprecated?
-            # self.io.tool_error(f"Error lexing {fname}")
-            return
+            if "ref" in saw:
+                return
+            if "def" not in saw:
+                return
 
-        tokens = list(lexer.get_tokens(code))
-        tokens = [token[1] for token in tokens if token[0] in Token.Name]
+            # We saw defs, without any refs
+            # Some tags files only provide defs (cpp, for example)
+            # Use pygments to backfill refs
 
-        for token in tokens:
-            yield Tag(
-                rel_fname=rel_fname,
-                fname=fname,
-                name=token,
-                kind="ref",
-                line=-1,
-            )
+            try:
+                lexer = guess_lexer_for_filename(fname, code)
+            except Exception:  # On Windows, bad ref to time.clock which is deprecated?
+                # self.io.tool_error(f"Error lexing {fname}")
+                return
+
+            tokens = list(lexer.get_tokens(code))
+            tokens = [token[1] for token in tokens if token[0] in Token.Name]
+
+            for token in tokens:
+                yield Tag(
+                    rel_fname=rel_fname,
+                    fname=fname,
+                    name=token,
+                    kind="ref",
+                    line=-1,
+                )
+        except Exception as err:
+            self.warn_tags_error(fname, err)
 
     def get_ranked_tags(
         self, chat_fnames, other_fnames, mentioned_fnames, mentioned_idents, progress=None
