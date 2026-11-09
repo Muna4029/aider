@@ -3,7 +3,7 @@ name: Ubuntu Python Tests
 on: push
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -22,7 +22,10 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libportaudio2
+        sudo apt-get install -y libportaudio2 pulseaudio
+
+    - name: Start PulseAudio
+      run: pulseaudio --start
 
     - name: Install dependencies
       run: |
@@ -35,3 +38,4 @@ jobs:
         AIDER_ANALYTICS: false
       run: |
         pytest
+
