@@ -25,6 +25,12 @@ from aider.waiting import Spinner
 warnings.simplefilter("ignore", category=FutureWarning)
 from grep_ast.tsl import USING_TSL_PACK, get_language, get_parser  # noqa: E402
 
+# QueryCursor was added in tree-sitter 0.25.2, fallback to None for older versions
+try:
+    from tree_sitter import QueryCursor
+except ImportError:
+    QueryCursor = None
+
 Tag = namedtuple("Tag", "rel_fname fname line name kind".split())
 
 
@@ -286,7 +292,15 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        # Use QueryCursor API for tree-sitter 0.25.2+, fallback to older API
+        if QueryCursor is not None:
+            try:
+                cursor = QueryCursor(query)
+                captures = cursor.captures(tree.root_node)
+            except Exception:
+                captures = query.captures(tree.root_node)
+        else:
+            captures = query.captures(tree.root_node)
 
         saw = set()
         if USING_TSL_PACK:
