@@ -148,6 +148,14 @@ class ModelInfoManager:
         self.local_model_metadata = {}
         self.verify_ssl = True
         self._cache_loaded = False
+        self._load_local_model_metadata()
+
+    def _load_local_model_metadata(self):
+        try:
+            with importlib.resources.open_text("aider.resources", "model-metadata.json") as f:
+                self.local_model_metadata = json5.loads(f.read())
+        except Exception:
+            self.local_model_metadata = {}
 
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl
@@ -195,6 +203,12 @@ class ModelInfoManager:
         data = self.local_model_metadata.get(model)
         if data:
             return data
+
+        # If the model is a plain name and there is a provider-prefixed local variant,
+        # use that as a fallback.
+        for key, value in self.local_model_metadata.items():
+            if "/" in key and key.endswith(f"/{model}"):
+                return value
 
         # Ensure cache is loaded before checking content
         self._load_cache()

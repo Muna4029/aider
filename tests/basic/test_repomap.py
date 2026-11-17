@@ -4,6 +4,7 @@ import re
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import git
 
@@ -17,6 +18,22 @@ from aider.utils import GitTemporaryDirectory, IgnorantTemporaryDirectory
 class TestRepoMap(unittest.TestCase):
     def setUp(self):
         self.GPT35 = Model("gpt-3.5-turbo")
+
+    def test_get_tags_handles_exceptions(self):
+        with IgnorantTemporaryDirectory() as temp_dir:
+            test_file = "test_file.py"
+            with open(os.path.join(temp_dir, test_file), "w") as f:
+                f.write("def test():\n    return 1\n")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            with patch.object(repo_map, "get_tags_raw", side_effect=ValueError("boom")):
+                self.assertEqual(
+                    repo_map.get_tags(os.path.join(temp_dir, test_file), test_file), []
+                )
+
+            del repo_map
 
     def test_get_repo_map(self):
         # Create a temporary directory with sample files for testing
