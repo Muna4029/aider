@@ -148,6 +148,21 @@ class ModelInfoManager:
         self.local_model_metadata = {}
         self.verify_ssl = True
         self._cache_loaded = False
+        self._load_package_model_metadata()
+
+    def _load_package_model_metadata(self):
+        try:
+            resource = importlib.resources.files("aider.resources").joinpath(
+                "model-metadata.json"
+            )
+            if resource.is_file():
+                data = json5.loads(resource.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self.local_model_metadata.update(data)
+        except Exception:
+            # Fall back to litellm and cached metadata if the packaged metadata
+            # cannot be loaded for any reason.
+            pass
 
     def set_verify_ssl(self, verify_ssl):
         self.verify_ssl = verify_ssl
