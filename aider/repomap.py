@@ -17,6 +17,11 @@ from pygments.lexers import guess_lexer_for_filename
 from pygments.token import Token
 from tqdm import tqdm
 
+try:
+    from tree_sitter import QueryCursor
+except (ImportError, ModuleNotFoundError):
+    QueryCursor = None
+
 from aider.dump import dump
 from aider.special import filter_important_files
 from aider.utils import Spinner
@@ -284,7 +289,13 @@ class RepoMap:
 
         # Run the tags queries
         query = language.query(query_scm)
-        captures = query.captures(tree.root_node)
+        if QueryCursor is None:
+            captures = query.captures(tree.root_node)
+        else:
+            try:
+                captures = QueryCursor(query).captures(tree.root_node)
+            except (AttributeError, TypeError):
+                captures = query.captures(tree.root_node)
 
         saw = set()
         if USING_TSL_PACK:
