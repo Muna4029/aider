@@ -1621,8 +1621,7 @@ def parse_quoted_filenames(args):
 
 
 def get_help_md():
-    md = Commands(None, None).get_help_md()
-    return md
+    return Commands.get_help_md(Commands(None, None))
 
 
 def main():
