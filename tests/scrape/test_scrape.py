@@ -35,7 +35,7 @@ class TestScrape(unittest.TestCase):
         scraper_no_verify.print_error.assert_not_called()
 
     def setUp(self):
-        self.io = InputOutput(yes=True)
+        self.io = InputOutput(yes=True, input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
         self.commands = Commands(self.io, None)
 
     def test_cmd_web_imports_playwright(self):

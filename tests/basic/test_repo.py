@@ -31,7 +31,7 @@ class TestRepo(unittest.TestCase):
             # Make a change in the working dir
             fname.write_text("workingdir\n")
 
-            git_repo = GitRepo(InputOutput(), None, ".")
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, ".")
             diffs = git_repo.get_diffs()
             self.assertIn("index", diffs)
             self.assertIn("workingdir", diffs)
@@ -54,7 +54,7 @@ class TestRepo(unittest.TestCase):
 
             fname2.write_text("workingdir\n")
 
-            git_repo = GitRepo(InputOutput(), None, ".")
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, ".")
             diffs = git_repo.get_diffs()
             self.assertIn("index", diffs)
             self.assertIn("workingdir", diffs)
@@ -72,7 +72,7 @@ class TestRepo(unittest.TestCase):
             # Make a change with non-ASCII symbols in the working dir
             fname.write_text("АБВ\n", encoding=encoding)
 
-            git_repo = GitRepo(InputOutput(encoding=encoding), None, ".")
+            git_repo = GitRepo(InputOutput(encoding=encoding, input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, ".")
             diffs = git_repo.get_diffs()
 
             # check that all diff output can be converted to utf-8 for sending to model
@@ -106,7 +106,7 @@ class TestRepo(unittest.TestCase):
 
             fname2.write_text("workingdir\n")
 
-            git_repo = GitRepo(InputOutput(), None, ".")
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, ".")
             diffs = git_repo.get_diffs()
             self.assertIn("index", diffs)
             self.assertIn("workingdir", diffs)
@@ -124,7 +124,7 @@ class TestRepo(unittest.TestCase):
             repo.git.add(str(fname))
             repo.git.commit("-m", "second")
 
-            git_repo = GitRepo(InputOutput(), None, ".")
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, ".")
             diffs = git_repo.diff_commits(False, "HEAD~1", "HEAD")
             self.assertIn("two", diffs)
 
@@ -136,7 +136,7 @@ class TestRepo(unittest.TestCase):
         model2 = Model("gpt-4")
         dump(model1)
         dump(model2)
-        repo = GitRepo(InputOutput(), None, None, models=[model1, model2])
+        repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, models=[model1, model2])
 
         # Call the get_commit_message method with dummy diff and context
         result = repo.get_commit_message("dummy diff", "dummy context")
@@ -156,7 +156,7 @@ class TestRepo(unittest.TestCase):
     def test_get_commit_message_strip_quotes(self, mock_send):
         mock_send.return_value = '"a good commit message"'
 
-        repo = GitRepo(InputOutput(), None, None, models=[self.GPT35])
+        repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, models=[self.GPT35])
         # Call the get_commit_message method with dummy diff and context
         result = repo.get_commit_message("dummy diff", "dummy context")
 
@@ -167,7 +167,7 @@ class TestRepo(unittest.TestCase):
     def test_get_commit_message_no_strip_unmatched_quotes(self, mock_send):
         mock_send.return_value = 'a good "commit message"'
 
-        repo = GitRepo(InputOutput(), None, None, models=[self.GPT35])
+        repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, models=[self.GPT35])
         # Call the get_commit_message method with dummy diff and context
         result = repo.get_commit_message("dummy diff", "dummy context")
 
@@ -179,7 +179,7 @@ class TestRepo(unittest.TestCase):
         mock_send.return_value = "Custom commit message"
         custom_prompt = "Generate a commit message in the style of Shakespeare"
 
-        repo = GitRepo(InputOutput(), None, None, models=[self.GPT35], commit_prompt=custom_prompt)
+        repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, models=[self.GPT35], commit_prompt=custom_prompt)
         result = repo.get_commit_message("dummy diff", "dummy context")
 
         self.assertEqual(result, "Custom commit message")
@@ -203,7 +203,7 @@ class TestRepo(unittest.TestCase):
             raw_repo.git.add(str(fname))
             raw_repo.git.commit("-m", "initial commit")
 
-            io = InputOutput()
+            io = InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
             # Initialize GitRepo with default None values for attributes
             git_repo = GitRepo(io, None, None, attribute_author=None, attribute_committer=None)
 
@@ -288,7 +288,7 @@ class TestRepo(unittest.TestCase):
             mock_coder.main_model = MagicMock()
             mock_coder.main_model.name = "gpt-test"
 
-            io = InputOutput()
+            io = InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
             git_repo = GitRepo(io, None, None)
 
             # commit a change with aider_edits=True and co-authored-by flag
@@ -342,7 +342,7 @@ class TestRepo(unittest.TestCase):
             mock_coder.main_model = MagicMock()
             mock_coder.main_model.name = "gpt-test-combo"
 
-            io = InputOutput()
+            io = InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
             git_repo = GitRepo(io, None, None)
 
             # commit a change with aider_edits=True and combo flags
@@ -385,7 +385,7 @@ class TestRepo(unittest.TestCase):
             raw_repo.git.add(str(fname))
             raw_repo.git.commit("-m", "initial commit")
 
-            io = InputOutput()
+            io = InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
 
             # Case 1: attribute_author = False, attribute_committer = None (default True)
             mock_coder_no_author = MagicMock()
@@ -471,7 +471,7 @@ class TestRepo(unittest.TestCase):
 
         repo.git.commit("-m", "added")
 
-        tracked_files = GitRepo(InputOutput(), [tempdir], None).get_tracked_files()
+        tracked_files = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), [tempdir], None).get_tracked_files()
 
         # On windows, paths will come back \like\this, so normalize them back to Paths
         tracked_files = [Path(fn) for fn in tracked_files]
@@ -489,7 +489,7 @@ class TestRepo(unittest.TestCase):
             fname.touch()
             raw_repo.git.add(str(fname))
 
-            git_repo = GitRepo(InputOutput(), None, None)
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None)
 
             # better be there
             fnames = git_repo.get_tracked_files()
@@ -521,7 +521,7 @@ class TestRepo(unittest.TestCase):
             raw_repo.git.add(str(fname))
 
             aiderignore = Path(".aiderignore")
-            git_repo = GitRepo(InputOutput(), None, None, str(aiderignore))
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, str(aiderignore))
 
             # better be there
             fnames = git_repo.get_tracked_files()
@@ -573,7 +573,7 @@ class TestRepo(unittest.TestCase):
 
             os.chdir(fname.parent)
 
-            git_repo = GitRepo(InputOutput(), None, None)
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None)
 
             # better be there
             fnames = git_repo.get_tracked_files()
@@ -607,7 +607,7 @@ class TestRepo(unittest.TestCase):
             os.chdir(subdir_file.parent)
 
             # Create GitRepo instance with subtree_only=True
-            git_repo = GitRepo(InputOutput(), None, None, subtree_only=True)
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, subtree_only=True)
 
             # Test ignored_file method
             self.assertFalse(git_repo.ignored_file(str(subdir_file)))
@@ -634,7 +634,7 @@ class TestRepo(unittest.TestCase):
             raw_repo.git.add(str(fname))
             raw_repo.git.commit("-m", "new")
 
-            git_repo = GitRepo(InputOutput(), None, None)
+            git_repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None)
 
             commit_result = git_repo.commit(fnames=[str(fname)])
             self.assertIsNone(commit_result)
@@ -666,7 +666,7 @@ class TestRepo(unittest.TestCase):
             fname.write_text("modified content")
 
             # Create GitRepo with verify=True (default)
-            io = InputOutput()
+            io = InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
             git_repo_verify = GitRepo(io, None, None, git_commit_verify=True)
 
             # Attempt to commit - should fail due to pre-commit hook
@@ -697,7 +697,7 @@ class TestRepo(unittest.TestCase):
         model.system_prompt_prefix = prefix
 
         with GitTemporaryDirectory():
-            repo = GitRepo(InputOutput(), None, None, models=[model])
+            repo = GitRepo(InputOutput(input_history_file=tempfile.NamedTemporaryFile(delete=False).name), None, None, models=[model])
 
             # Call the function under test
             repo.get_commit_message("dummy diff", "dummy context")

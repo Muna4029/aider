@@ -1,3 +1,4 @@
+import tempfile
 import time
 import unittest
 from unittest.mock import MagicMock
@@ -49,7 +50,7 @@ class TestHelp(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        io = InputOutput(pretty=False, yes=True)
+        io = InputOutput(pretty=False, yes=True, input_history_file=tempfile.NamedTemporaryFile(delete=False).name)
 
         GPT35 = Model("gpt-3.5-turbo")
 
