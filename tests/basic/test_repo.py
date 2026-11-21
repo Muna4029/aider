@@ -204,15 +204,15 @@ class TestRepo(unittest.TestCase):
             raw_repo.git.commit("-m", "initial commit")
 
             io = InputOutput()
-            # Initialize GitRepo with default None values for attributes
-            git_repo = GitRepo(io, None, None, attribute_author=None, attribute_committer=None)
+            # Initialize GitRepo with explicit attribution defaults
+            git_repo = GitRepo(io, None, None, attribute_author=True, attribute_committer=True)
 
             # commit a change with aider_edits=True (using default attributes)
             fname.write_text("new content")
             commit_result = git_repo.commit(fnames=[str(fname)], aider_edits=True)
             self.assertIsNotNone(commit_result)
 
-            # check the committer name (defaults interpreted as True)
+            # check the committer name (explicit True)
             commit = raw_repo.head.commit
             self.assertEqual(commit.author.name, "Test User (aider)")
             self.assertEqual(commit.committer.name, "Test User (aider)")
