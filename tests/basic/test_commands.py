@@ -567,9 +567,12 @@ class TestCommands(TestCase):
             # Check if the output includes information about all added files
             self.assertTrue(any("file1.txt" in line for line in output_lines))
 
-            # Check if the total tokens and remaining tokens are reported
+            # Check if the total tokens and context window size are reported
             self.assertTrue(any("tokens total" in line for line in output_lines))
-            self.assertTrue(any("tokens remaining" in line for line in output_lines))
+            self.assertTrue(
+                any("tokens remaining" in line for line in output_lines)
+                or any("tokens max context window size" in line for line in output_lines)
+            )
 
     def test_cmd_add_dirname_with_special_chars(self):
         with ChdirTemporaryDirectory():
