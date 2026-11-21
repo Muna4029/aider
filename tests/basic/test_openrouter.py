@@ -25,7 +25,7 @@ def test_openrouter_get_model_info_from_cache(monkeypatch, tmp_path):
             {
                 "id": "mistralai/mistral-medium-3",
                 "context_length": 32768,
-                "pricing": {"prompt": "100", "completion": "200"},
+                "pricing": {"prompt": 0.0001, "completion": 0.0002},
                 "top_provider": {"context_length": 32768},
             }
         ]
