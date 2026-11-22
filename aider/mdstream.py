@@ -132,7 +132,7 @@ class MarkdownStream:
         string_io = io.StringIO()
         console = Console(file=string_io, force_terminal=True)
         markdown = NoInsetMarkdown(text, **self.mdargs)
-        console.print(Panel(markdown))
+        console.print(markdown)
         output = string_io.getvalue()
 
         # Split rendered output into lines
