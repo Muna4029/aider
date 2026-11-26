@@ -308,7 +308,8 @@ class InputOutput:
         self.yes = yes
 
         self.input_history_file = input_history_file
-        Path(self.input_history_file).parent.mkdir(parents=True, exist_ok=True)
+        if self.input_history_file is not None:
+            Path(self.input_history_file).parent.mkdir(parents=True, exist_ok=True)
         self.llm_history_file = llm_history_file
         if chat_history_file is not None:
             self.chat_history_file = Path(chat_history_file)
@@ -1126,14 +1127,18 @@ class InputOutput:
                 self.chat_history_file = None  # Disable further attempts to write
 
     def format_files_for_input(self, rel_fnames, rel_read_only_fnames):
+        # Ensure callers may pass None for either argument by normalizing to empty lists
+        rel_fnames_list = list(rel_fnames or [])
+        rel_read_only_list = list(rel_read_only_fnames or [])
+
         if not self.pretty:
             read_only_files = []
-            for full_path in sorted(rel_read_only_fnames or []):
+            for full_path in sorted(rel_read_only_list):
                 read_only_files.append(f"{full_path} (read only)")
 
             editable_files = []
-            for full_path in sorted(rel_fnames):
-                if full_path in rel_read_only_fnames:
+            for full_path in sorted(rel_fnames_list):
+                if full_path in rel_read_only_list:
                     continue
                 editable_files.append(f"{full_path}")
 
@@ -1142,8 +1147,8 @@ class InputOutput:
         output = StringIO()
         console = Console(file=output, force_terminal=False)
 
-        read_only_files = sorted(rel_read_only_fnames or [])
-        editable_files = [f for f in sorted(rel_fnames) if f not in rel_read_only_fnames]
+        read_only_files = sorted(rel_read_only_list)
+        editable_files = [f for f in sorted(rel_fnames_list) if f not in rel_read_only_list]
 
         if read_only_files:
             # Use shorter of abs/rel paths for readonly files

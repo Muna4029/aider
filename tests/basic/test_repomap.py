@@ -32,7 +32,7 @@ class TestRepoMap(unittest.TestCase):
                 with open(os.path.join(temp_dir, file), "w") as f:
                     f.write("")
 
-            io = InputOutput()
+            io = InputOutput(temp_dir)
             repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
             other_files = [os.path.join(temp_dir, file) for file in test_files]
             result = repo_map.get_repo_map([], other_files)
@@ -67,7 +67,7 @@ class TestRepoMap(unittest.TestCase):
             repo.index.commit("Initial commit")
 
             # Initialize RepoMap with refresh="files"
-            io = InputOutput()
+            io = InputOutput(temp_dir)
             repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io, refresh="files")
             other_files = [
                 os.path.join(temp_dir, "file1.py"),
@@ -121,7 +121,7 @@ class TestRepoMap(unittest.TestCase):
             repo.index.commit("Initial commit")
 
             # Initialize RepoMap with refresh="auto"
-            io = InputOutput()
+            io = InputOutput(temp_dir)
             repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io, refresh="auto")
             chat_files = []
             other_files = [os.path.join(temp_dir, "file1.py"), os.path.join(temp_dir, "file2.py")]
@@ -194,7 +194,7 @@ print(my_function(3, 4))
             with open(os.path.join(temp_dir, test_file3), "w") as f:
                 f.write(file_content3)
 
-            io = InputOutput()
+            io = InputOutput(temp_dir)
             repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
             other_files = [
                 os.path.join(temp_dir, test_file1),
@@ -229,7 +229,8 @@ print(my_function(3, 4))
                 with open(os.path.join(temp_dir, file), "w") as f:
                     f.write("")
 
-            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=InputOutput())
+            io = InputOutput(temp_dir)
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
 
             other_files = [os.path.join(temp_dir, file) for file in test_files]
             result = repo_map.get_repo_map([], other_files)
@@ -257,7 +258,7 @@ print(my_function(3, 4))
                 with open(os.path.join(temp_dir, file), "w") as f:
                     f.write("def foo(): pass\n")
 
-            io = InputOutput()
+            io = InputOutput(temp_dir)
             repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
             test_files = [os.path.join(temp_dir, file) for file in test_files]
             result = repo_map.get_repo_map(test_files[:2], test_files[2:])
