@@ -56,7 +56,7 @@ class TestHelp(unittest.TestCase):
         coder = Coder.create(GPT35, None, io)
         commands = Commands(io, coder)
 
-        help_coder_run = MagicMock(return_value="")
+        help_coder_run = MagicMock(side_effect=aider.commands.SwitchCoder)
         aider.coders.HelpCoder.run = help_coder_run
 
         def run_help_command():

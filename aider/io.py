@@ -76,6 +76,7 @@ def with_history_disabled(func):
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        orig_buf_append = None
         try:
             orig_buf_append = self.prompt_session.default_buffer.append_to_history
             self.prompt_session.default_buffer.append_to_history = (
@@ -89,7 +90,7 @@ def with_history_disabled(func):
         except Exception:
             raise
         finally:
-            if orig_buf_append:
+            if orig_buf_append is not None:
                 self.prompt_session.default_buffer.append_to_history = orig_buf_append
 
     return wrapper
@@ -694,14 +695,14 @@ class InputOutput:
 
             except EOFError:
                 raise
+            except UnicodeEncodeError as err:
+                self.tool_error(str(err))
+                return ""
             except Exception as err:
                 import traceback
 
                 self.tool_error(str(err))
                 self.tool_error(traceback.format_exc())
-                return ""
-            except UnicodeEncodeError as err:
-                self.tool_error(str(err))
                 return ""
             finally:
                 if self.file_watcher:
@@ -1151,8 +1152,9 @@ class InputOutput:
                 read_only_files.append(f"{full_path} (read only)")
 
             editable_files = []
+            ro_set = set(rel_read_only_fnames or [])
             for full_path in sorted(rel_fnames):
-                if full_path in rel_read_only_fnames:
+                if full_path in ro_set:
                     continue
                 editable_files.append(f"{full_path}")
 
@@ -1162,7 +1164,8 @@ class InputOutput:
         console = Console(file=output, force_terminal=False)
 
         read_only_files = sorted(rel_read_only_fnames or [])
-        editable_files = [f for f in sorted(rel_fnames) if f not in rel_read_only_fnames]
+        ro_set = set(rel_read_only_fnames or [])
+        editable_files = [f for f in sorted(rel_fnames) if f not in ro_set]
 
         if read_only_files:
             # Use shorter of abs/rel paths for readonly files

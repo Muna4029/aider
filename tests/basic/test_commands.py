@@ -1425,8 +1425,8 @@ class TestCommands(TestCase):
             # Change the current working directory to the subdirectory
             os.chdir(subdir)
 
-            # Test the /read-only command using git_root referenced name
-            commands.cmd_read_only(os.path.join("subdir", "test_read_only_file.txt"))
+            # Test the /read-only command using a path relative to the current working dir
+            commands.cmd_read_only("test_read_only_file.txt")
 
             # Check if the file was added to abs_read_only_fnames
             self.assertTrue(
@@ -1436,8 +1436,8 @@ class TestCommands(TestCase):
                 )
             )
 
-            # Test dropping the read-only file using git_root referenced name
-            commands.cmd_drop(os.path.join("subdir", "test_read_only_file.txt"))
+            # Test dropping the read-only file using a path relative to the current working dir
+            commands.cmd_drop("test_read_only_file.txt")
 
             # Check if the file was removed from abs_read_only_fnames
             self.assertFalse(
