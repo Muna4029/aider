@@ -51,12 +51,25 @@ class TestHelp(unittest.TestCase):
     def setUpClass(cls):
         io = InputOutput(pretty=False, yes=True)
 
+        # Ensure prompt_session exists so environments without optional interactive deps
+        # don't trigger AttributeError in io initialization or later usage.
+        if getattr(io, "prompt_session", None) is None:
+            class _DummyBuffer:
+                def append_to_history(self, *a, **k):
+                    return None
+            class _DummyPrompt:
+                default_buffer = _DummyBuffer()
+            io.prompt_session = _DummyPrompt()
+
         GPT35 = Model("gpt-3.5-turbo")
 
         coder = Coder.create(GPT35, None, io)
         commands = Commands(io, coder)
 
-        help_coder_run = MagicMock(return_value="")
+        # Mock HelpCoder.run to raise SwitchCoder to mimic behavior that the help
+        # command is expected to trigger (switching coders). Use an exception
+        # instance so the MagicMock will raise it when called.
+        help_coder_run = MagicMock(side_effect=aider.commands.SwitchCoder())
         aider.coders.HelpCoder.run = help_coder_run
 
         def run_help_command():

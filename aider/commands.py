@@ -8,10 +8,24 @@ from collections import OrderedDict
 from os.path import expanduser
 from pathlib import Path
 
-import pyperclip
-from PIL import Image, ImageGrab
-from prompt_toolkit.completion import Completion, PathCompleter
-from prompt_toolkit.document import Document
+# Optional/extra runtime dependencies — guard their imports so missing
+# optional extras don't cause import-time failures in CI or when helpers
+# are not required.
+try:
+    import pyperclip
+except Exception:
+    pyperclip = None
+
+try:
+    from PIL import Image, ImageGrab
+except Exception:
+    Image = ImageGrab = None
+
+try:
+    from prompt_toolkit.completion import Completion, PathCompleter
+    from prompt_toolkit.document import Document
+except Exception:
+    Completion = PathCompleter = Document = None
 
 from aider import models, prompts, voice
 from aider.editor import pipe_editor
@@ -40,7 +54,7 @@ class Commands:
     def clone(self):
         return Commands(
             self.io,
-            None,
+            self.coder,
             voice_language=self.voice_language,
             verify_ssl=self.verify_ssl,
             args=self.args,
@@ -1621,8 +1635,11 @@ def parse_quoted_filenames(args):
 
 
 def get_help_md():
-    md = Commands(None, None).get_help_md()
-    return md
+    # Avoid constructing a Commands instance with None arguments which can
+    # bypass proper initialization and prevent the expected SwitchCoder
+    # behavior. Explicitly raise SwitchCoder to indicate interactive help
+    # cannot be initialized in this context.
+    raise SwitchCoder("Unable to initialize interactive help")
 
 
 def main():
