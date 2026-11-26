@@ -19,7 +19,7 @@ class TestSendChat(unittest.TestCase):
         litellm_ex = LiteLLMExceptions()
         litellm_ex._load(strict=True)
 
-    @patch("litellm.completion")
+    @patch("aider.models.litellm.completion")
     @patch("builtins.print")
     def test_simple_send_with_retries_rate_limit_error(self, mock_print, mock_completion):
         mock = MagicMock()
@@ -40,7 +40,7 @@ class TestSendChat(unittest.TestCase):
         Model(self.mock_model).simple_send_with_retries(self.mock_messages)
         assert mock_print.call_count == 3
 
-    @patch("litellm.completion")
+    @patch("aider.models.litellm.completion")
     def test_send_completion_basic(self, mock_completion):
         # Setup mock response
         mock_response = MagicMock()
@@ -54,7 +54,7 @@ class TestSendChat(unittest.TestCase):
         assert response == mock_response
         mock_completion.assert_called_once()
 
-    @patch("litellm.completion")
+    @patch("aider.models.litellm.completion")
     def test_send_completion_with_functions(self, mock_completion):
         mock_function = {"name": "test_function", "parameters": {"type": "object"}}
 
@@ -67,7 +67,7 @@ class TestSendChat(unittest.TestCase):
         assert "tools" in called_kwargs
         assert called_kwargs["tools"][0]["function"] == mock_function
 
-    @patch("litellm.completion")
+    @patch("aider.models.litellm.completion")
     def test_simple_send_attribute_error(self, mock_completion):
         # Setup mock to raise AttributeError
         mock_completion.return_value = MagicMock()
@@ -77,7 +77,7 @@ class TestSendChat(unittest.TestCase):
         result = Model(self.mock_model).simple_send_with_retries(self.mock_messages)
         assert result is None
 
-    @patch("litellm.completion")
+    @patch("aider.models.litellm.completion")
     @patch("builtins.print")
     def test_simple_send_non_retryable_error(self, mock_print, mock_completion):
         # Test with an error that shouldn't trigger retries
